@@ -181,3 +181,35 @@ button:disabled {
   font-size: 12px;
   color: #94a3b8;
 }
+
+.result-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 10px 12px;
+  background: linear-gradient(90deg, #14532d, #0f766e);
+  border-bottom: 1px solid #334155;
+}
+
+.result-banner__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.result-banner__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #ecfdf5;
+}
+
+.result-banner__close {
+  flex: 0 0 auto;
+  border-color: #a7f3d0;
+  background: #064e3b;
+  color: #ecfdf5;
+}

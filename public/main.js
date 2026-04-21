@@ -18,12 +18,17 @@ const boardEl = document.getElementById('board');
 const logEl = document.getElementById('log');
 const selectedCardInfo = document.getElementById('selectedCardInfo');
 const spectatorsEl = document.getElementById('spectators');
+const resultBannerEl = document.getElementById('resultBanner');
+const resultBannerTextEl = document.getElementById('resultBannerText');
+const resultBannerCloseEl = document.getElementById('resultBannerClose');
 
 let state = null;
 let myIndex = -1;
 let selectedCardIndex = null;
 let hoverCard = null;
 let handHoverGlobalsBound = false;
+let lastResultNotifyKey = '';
+let resultBannerDismissedForKey = '';
 
 function clearHandHoverPreview() {
   hoverCard = null;
@@ -36,6 +41,11 @@ function bindHandHoverGlobalsOnce() {
   window.addEventListener('pointerup', clearHandHoverPreview);
   window.addEventListener('pointercancel', clearHandHoverPreview);
 }
+
+resultBannerCloseEl.addEventListener('click', () => {
+  resultBannerEl.hidden = true;
+  if (lastResultNotifyKey) resultBannerDismissedForKey = lastResultNotifyKey;
+});
 
 const ONE_EYE_JACKS = new Set(['JS', 'JH']);
 const TWO_EYE_JACKS = new Set(['JD', 'JC']);
@@ -359,6 +369,70 @@ function renderLog() {
   });
 }
 
+function stableStringifyWinner(winner) {
+  if (!winner) return 'none';
+  try {
+    return JSON.stringify(winner);
+  } catch {
+    return String(winner);
+  }
+}
+
+function maybeShowGameResultBanner() {
+  if (!state || state.status !== 'finished') return;
+  const w = state.winner;
+  if (!w) return;
+
+  const key = `${state.code || 'room'}|${stableStringifyWinner(w)}`;
+  if (key === lastResultNotifyKey && resultBannerDismissedForKey === key) return;
+  if (key !== lastResultNotifyKey) {
+    lastResultNotifyKey = key;
+    resultBannerDismissedForKey = '';
+  }
+  if (resultBannerDismissedForKey === key) return;
+
+  let winnerLabel = '';
+  if (w.type === 'player') {
+    const p = state.players[w.playerIdx];
+    winnerLabel = p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : '승자';
+  } else if (w.type === 'team') {
+    const names = (w.players || [])
+      .map((idx) => {
+        const p = state.players[idx];
+        return p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : `#${idx}`;
+      })
+      .join(', ');
+    winnerLabel = `팀 ${Number(w.team) + 1} (${names})`;
+  } else {
+    winnerLabel = '승자';
+  }
+
+  let body = '';
+  if (state.viewer && state.viewer.isSpectator) {
+    body = `게임 종료! 우승: ${winnerLabel} — 멋진 한 판이었습니다!`;
+  } else if (myIndex < 0) {
+    body = `게임 종료! 우승: ${winnerLabel} — 수고하셨습니다!`;
+  } else if (w.type === 'player') {
+    if (w.playerIdx === myIndex) {
+      body = `승리했습니다! 축하합니다! 당신이 시퀀스를 먼저 완성했습니다.`;
+    } else {
+      body = `아쉽게도 패배입니다. 우승: ${winnerLabel} — 다음 판도 화이팅!`;
+    }
+  } else if (w.type === 'team') {
+    const myTeam = state.players[myIndex]?.team;
+    if (myTeam === w.team) {
+      body = `팀 승리! 축하합니다! 팀이 시퀀스 목표를 먼저 달성했습니다.`;
+    } else {
+      body = `패배입니다. 우승: ${winnerLabel} — 다음엔 역전해요!`;
+    }
+  } else {
+    body = `게임 종료! 우승: ${winnerLabel}`;
+  }
+
+  resultBannerTextEl.textContent = body;
+  resultBannerEl.hidden = false;
+}
+
 function renderState() {
   if (!state) return;
   myIndex = state.players.findIndex((p) => p.id === socket.id);
@@ -424,6 +498,10 @@ function renderState() {
   renderHand();
   renderBoard();
   renderLog();
+  maybeShowGameResultBanner();
+  if (state.status !== 'finished' && !resultBannerEl.hidden) {
+    resultBannerEl.hidden = true;
+  }
 }
 
 socket.on('state', (s) => {
