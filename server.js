@@ -68,6 +68,11 @@ function emitState(game) {
   }
 }
 
+function cellInCompletedSequence(game, r, c) {
+  const key = `${r},${c}`;
+  return game.sequences.some((seq) => seq.cells.some((cell) => `${cell.r},${cell.c}` === key));
+}
+
 function findGameBySocketId(socketId) {
   for (const game of games.values()) {
     const idx = game.players.findIndex((p) => p.id === socketId);
@@ -109,6 +114,7 @@ function chooseMove(game, playerIdx) {
         for (let c = 0; c < 10; c++) {
           const owner = me[r][c];
           if (owner === null || owner === playerIdx) continue;
+          if (cellInCompletedSequence(game, r, c)) continue;
           removeMoves.push({ type: 'play', cardIndex, row: r, col: c });
         }
       }
@@ -159,7 +165,14 @@ function runAiTurns(game, delayMs = 600) {
         game.aiForceDiscardAnyCard(cp, 0);
       }
     } else if (move.type === 'play') {
-      game.playCard(cp, move.cardIndex, move.row, move.col);
+      const result = game.playCard(cp, move.cardIndex, move.row, move.col);
+      if (
+        !result.success &&
+        game.status === 'playing' &&
+        game.players[cp].hand.length > 0
+      ) {
+        game.aiForceDiscardAnyCard(cp, move.cardIndex);
+      }
     } else if (move.type === 'discard') {
       game.discardDeadCard(cp, move.cardIndex);
     }

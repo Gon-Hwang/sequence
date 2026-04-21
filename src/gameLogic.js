@@ -132,6 +132,9 @@ function handSize(numPlayers) {
   return 6;
 }
 
+/** 전체 플레이어가 번갈아 둔 총 수(한 번의 놓기/버리기 = 1). 무한 장기전 방지용 */
+const MAX_GAME_PLIES = 1000;
+
 // ── GameState class ────────────────────────────────────────────────────────────
 class GameState {
   constructor(code, maxPlayers, numAI) {
@@ -149,6 +152,7 @@ class GameState {
     this.winner = null; // player index or team
     this.log = []; // game log messages
     this.createdAt = Date.now();
+    this.plyCount = 0;
   }
 
   addPlayer(id, name, isHost) {
@@ -189,6 +193,7 @@ class GameState {
     }
 
     this.status = 'playing';
+    this.plyCount = 0;
     this.deck = shuffleDeck(buildDeck(), Date.now());
     this.currentPlayer = 0;
 
@@ -252,6 +257,7 @@ class GameState {
 
     this.checkWin();
     if (this.status === 'playing') this.nextTurn();
+    this.bumpPly();
     return { success: true };
   }
 
@@ -284,6 +290,7 @@ class GameState {
     player.hand.push(...newCards);
     this.logMsg(`${player.name}이(가) 데드카드 ${card}를 버렸습니다`);
     this.nextTurn();
+    this.bumpPly();
     return { success: true };
   }
 
@@ -298,7 +305,81 @@ class GameState {
     player.hand.push(...newCards);
     this.logMsg(`${player.name}이(가) ${card}를 강제로 버렸습니다(AI)`);
     this.nextTurn();
+    this.bumpPly();
     return { success: true };
+  }
+
+  bumpPly() {
+    this.plyCount += 1;
+    if (this.status !== 'playing') return;
+    if (this.plyCount < MAX_GAME_PLIES) return;
+    this.endGameByPlyLimit();
+  }
+
+  endGameByPlyLimit() {
+    if (this.status !== 'playing') return;
+    const np = this.players.length;
+
+    if (np === 4) {
+      let t0Seq = 0;
+      let t1Seq = 0;
+      for (const s of this.sequences) {
+        const team = this.players[s.owner].team;
+        if (team === 0) t0Seq += 1;
+        else t1Seq += 1;
+      }
+      if (t0Seq > t1Seq) {
+        const teamPlayers = this.players.map((p, i) => i).filter((i) => this.players[i].team === 0);
+        this.winner = { type: 'team', team: 0, players: teamPlayers, reason: 'ply_limit' };
+      } else if (t1Seq > t0Seq) {
+        const teamPlayers = this.players.map((p, i) => i).filter((i) => this.players[i].team === 1);
+        this.winner = { type: 'team', team: 1, players: teamPlayers, reason: 'ply_limit' };
+      } else {
+        let t0Chips = 0;
+        let t1Chips = 0;
+        for (let r = 0; r < 10; r++) {
+          for (let c = 0; c < 10; c++) {
+            const o = this.chips[r][c];
+            if (o === null) continue;
+            const team = this.players[o].team;
+            if (team === 0) t0Chips += 1;
+            else t1Chips += 1;
+          }
+        }
+        if (t0Chips > t1Chips) {
+          const teamPlayers = this.players.map((p, i) => i).filter((i) => this.players[i].team === 0);
+          this.winner = { type: 'team', team: 0, players: teamPlayers, reason: 'ply_limit' };
+        } else if (t1Chips > t0Chips) {
+          const teamPlayers = this.players.map((p, i) => i).filter((i) => this.players[i].team === 1);
+          this.winner = { type: 'team', team: 1, players: teamPlayers, reason: 'ply_limit' };
+        } else {
+          this.winner = { type: 'draw', tiedTeams: [0, 1], reason: 'ply_limit' };
+        }
+      }
+    } else {
+      const seqCounts = this.players.map((_, i) => this.sequences.filter((s) => s.owner === i).length);
+      const maxSeq = Math.max(...seqCounts);
+      const leaders = seqCounts.map((c, i) => (c === maxSeq ? i : -1)).filter((i) => i >= 0);
+      if (leaders.length === 1) {
+        this.winner = { type: 'player', playerIdx: leaders[0], reason: 'ply_limit' };
+      } else {
+        const chipCounts = leaders.map((i) => ({
+          i,
+          n: this.chips.flat().filter((o) => o === i).length,
+        }));
+        chipCounts.sort((a, b) => b.n - a.n);
+        const topN = chipCounts[0].n;
+        const topLeaders = chipCounts.filter((c) => c.n === topN).map((c) => c.i);
+        if (topLeaders.length === 1) {
+          this.winner = { type: 'player', playerIdx: topLeaders[0], reason: 'ply_limit' };
+        } else {
+          this.winner = { type: 'draw', tied: topLeaders, reason: 'ply_limit' };
+        }
+      }
+    }
+
+    this.status = 'finished';
+    this.logMsg(`최대 수(${this.plyCount}수)에 도달해 게임을 종료했습니다.`);
   }
 
   seqsToWin() {

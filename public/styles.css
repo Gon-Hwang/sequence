@@ -115,9 +115,30 @@ button:disabled {
 }
 
 .cell.free {
-  background: linear-gradient(160deg, #1e1b4b 0%, #312e81 45%, #1e293b 100%);
-  border-color: #6366f1;
-  color: #e0e7ff;
+  background: #334155;
+  border-color: #64748b;
+  color: #f1f5f9;
+}
+
+/* 코너 = 와일드칸(칩 없음). L자 장식만 표시 */
+.cell.free::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 9px;
+  height: 9px;
+  border-left: 2px solid rgba(226, 232, 240, 0.45);
+  border-top: 2px solid rgba(226, 232, 240, 0.45);
+  border-radius: 2px 0 0 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cell.free.seq-line::after {
+  border-left-color: var(--seq-tone, #fbbf24);
+  border-top-color: var(--seq-tone, #fbbf24);
+  opacity: 1;
 }
 
 .cell.hint-playable {

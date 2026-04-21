@@ -390,12 +390,10 @@ function renderBoard() {
 
       const seqMeta = seqMap.get(cellKey(r, c));
       const owner = chips[r][c];
-      const chipOwner =
-        owner !== null ? owner : card === 'FREE' && seqMeta ? seqMeta.owner : null;
-      if (chipOwner !== null) {
+      if (owner !== null) {
         const chip = document.createElement('span');
         chip.className = 'chip';
-        chip.style.background = state.players[chipOwner]?.color || '#94a3b8';
+        chip.style.background = state.players[owner]?.color || '#94a3b8';
         cell.appendChild(chip);
       }
 
@@ -494,27 +492,60 @@ function maybeShowGameResultBanner() {
       })
       .join(', ');
     winnerLabel = `팀 ${Number(w.team) + 1} (${names})`;
+  } else if (w.type === 'draw') {
+    if (Array.isArray(w.tiedTeams) && w.tiedTeams.length) {
+      winnerLabel = '팀 동점 무승부';
+    } else {
+      const names = (w.tied || [])
+        .map((idx) => {
+          const p = state.players[idx];
+          return p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : `#${idx}`;
+        })
+        .join(', ');
+      winnerLabel = names ? `동점 무승부 (${names})` : '무승부';
+    }
   } else {
     winnerLabel = '승자';
   }
 
   let body = '';
-  if (state.viewer && state.viewer.isSpectator) {
+  if (w.type === 'draw') {
+    if (Array.isArray(w.tiedTeams) && w.tiedTeams.length) {
+      body =
+        '최대 수에 도달했습니다. 팀 시퀀스 수·칩 수까지 동점이라 무승부로 끝났습니다.';
+    } else if (myIndex >= 0 && (w.tied || []).includes(myIndex)) {
+      body = `최대 수에 도달했습니다. 완성 시퀀스·칩 수가 같아 ${winnerLabel}입니다.`;
+    } else {
+      body = `최대 수에 도달했습니다. ${winnerLabel}`;
+    }
+  } else if (state.viewer && state.viewer.isSpectator) {
     body = `게임 종료! 우승: ${winnerLabel} — 멋진 한 판이었습니다!`;
   } else if (myIndex < 0) {
     body = `게임 종료! 우승: ${winnerLabel} — 수고하셨습니다!`;
   } else if (w.type === 'player') {
     if (w.playerIdx === myIndex) {
-      body = `승리했습니다! 축하합니다! 당신이 시퀀스를 먼저 완성했습니다.`;
+      body =
+        w.reason === 'ply_limit'
+          ? '최대 수에 도달했습니다. 완성 시퀀스·놓인 칩 수로 이겼습니다!'
+          : '승리했습니다! 축하합니다! 당신이 시퀀스를 먼저 완성했습니다.';
     } else {
-      body = `아쉽게도 패배입니다. 우승: ${winnerLabel} — 다음 판도 화이팅!`;
+      body =
+        w.reason === 'ply_limit'
+          ? `최대 수에 도달했습니다. 우승: ${winnerLabel}(시퀀스·칩 연장 전)`
+          : `아쉽게도 패배입니다. 우승: ${winnerLabel} — 다음 판도 화이팅!`;
     }
   } else if (w.type === 'team') {
     const myTeam = state.players[myIndex]?.team;
     if (myTeam === w.team) {
-      body = `팀 승리! 축하합니다! 팀이 시퀀스 목표를 먼저 달성했습니다.`;
+      body =
+        w.reason === 'ply_limit'
+          ? '최대 수에 도달했습니다. 팀 시퀀스·칩 수로 이겼습니다!'
+          : '팀 승리! 축하합니다! 팀이 시퀀스 목표를 먼저 달성했습니다.';
     } else {
-      body = `패배입니다. 우승: ${winnerLabel} — 다음엔 역전해요!`;
+      body =
+        w.reason === 'ply_limit'
+          ? `최대 수에 도달했습니다. 우승: ${winnerLabel}(시퀀스·칩 연장 전)`
+          : `패배입니다. 우승: ${winnerLabel} — 다음엔 역전해요!`;
     }
   } else {
     body = `게임 종료! 우승: ${winnerLabel}`;
