@@ -386,7 +386,10 @@ function renderBoard() {
       cell.className = 'cell' + (card === 'FREE' ? ' free' : '');
       cell.dataset.r = String(r);
       cell.dataset.c = String(c);
-      cell.textContent = card;
+      const label = document.createElement('span');
+      label.className = 'cell-label';
+      label.textContent = card;
+      cell.appendChild(label);
 
       const seqMeta = seqMap.get(cellKey(r, c));
       const owner = chips[r][c];
