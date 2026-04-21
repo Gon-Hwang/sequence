@@ -7,6 +7,9 @@ const roomCodeInput = document.getElementById('roomCodeInput');
 const createBtn = document.getElementById('createBtn');
 const joinBtn = document.getElementById('joinBtn');
 const startBtn = document.getElementById('startBtn');
+const postGameBar = document.getElementById('postGameBar');
+const rematchBtn = document.getElementById('rematchBtn');
+const backToLobbyBtn = document.getElementById('backToLobbyBtn');
 const lobbyHintEl = document.getElementById('lobbyHint');
 const lobbyControlsEl = document.getElementById('lobbyControls');
 
@@ -46,6 +49,39 @@ resultBannerCloseEl.addEventListener('click', () => {
   resultBannerEl.hidden = true;
   if (lastResultNotifyKey) resultBannerDismissedForKey = lastResultNotifyKey;
 });
+
+function resetLocalClientState() {
+  state = null;
+  myIndex = -1;
+  selectedCardIndex = null;
+  hoverCard = null;
+  lastResultNotifyKey = '';
+  resultBannerDismissedForKey = '';
+  resultBannerEl.hidden = true;
+  roomCodeEl.textContent = '-';
+  statusEl.textContent = '대기';
+  lobbyHintEl.textContent = '';
+  playersEl.innerHTML = '';
+  handEl.innerHTML = '';
+  boardEl.innerHTML = '';
+  logEl.innerHTML = '';
+  spectatorsEl.textContent = '';
+  selectedCardInfo.textContent = '';
+  lobbyControlsEl.style.opacity = '1';
+  lobbyControlsEl.style.pointerEvents = 'auto';
+  startBtn.textContent = '게임 시작';
+  startBtn.disabled = true;
+  startBtn.title = '';
+  postGameBar.hidden = true;
+}
+
+rematchBtn.onclick = () => socket.emit('rematch');
+
+backToLobbyBtn.onclick = () => {
+  if (!state) return;
+  if (state.viewer && state.viewer.isHost) socket.emit('backToLobby');
+  else socket.emit('leaveRoom');
+};
 
 const ONE_EYE_JACKS = new Set(['JS', 'JH']);
 const TWO_EYE_JACKS = new Set(['JD', 'JC']);
@@ -604,7 +640,8 @@ function renderState() {
     lobbyControlsEl.style.pointerEvents = 'none';
   } else if (state.status === 'finished') {
     startBtn.textContent = '종료됨';
-    lobbyHintEl.textContent = '게임이 종료되었습니다. 새 방을 만들어 다시 플레이할 수 있습니다.';
+    lobbyHintEl.textContent =
+      '게임이 종료되었습니다. 방장: 게임 다시하기 또는 로비로 나가기 / 참가자: 방 나가기';
     lobbyControlsEl.style.opacity = '0.45';
     lobbyControlsEl.style.pointerEvents = 'none';
   } else {
@@ -624,6 +661,16 @@ function renderState() {
   if (state.status !== 'finished' && !resultBannerEl.hidden) {
     resultBannerEl.hidden = true;
   }
+
+  if (state.status === 'finished' && state.viewer) {
+    postGameBar.hidden = false;
+    const isHost = state.viewer.isHost;
+    rematchBtn.disabled = !isHost;
+    rematchBtn.title = isHost ? '' : '방장만 사용할 수 있습니다';
+    backToLobbyBtn.textContent = isHost ? '로비로 나가기' : '방 나가기';
+  } else {
+    postGameBar.hidden = true;
+  }
 }
 
 socket.on('state', (s) => {
@@ -637,4 +684,8 @@ socket.on('state', (s) => {
 
 socket.on('errorMsg', (msg) => {
   alert(msg);
+});
+
+socket.on('leftRoom', () => {
+  resetLocalClientState();
 });

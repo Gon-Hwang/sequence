@@ -84,6 +84,25 @@ function findGameBySocketId(socketId) {
   return null;
 }
 
+function validateLobbyStart(game) {
+  const humans = game.players.filter((p) => !p.isAI).length;
+  const targetHumans = game.targetHumanCount ?? game.maxPlayers;
+  if (humans !== targetHumans) {
+    return {
+      ok: false,
+      error: `사람 플레이어 ${targetHumans}명이 되어야 시작할 수 있습니다`,
+    };
+  }
+  const targetAi = game.numAI;
+  if (humans + targetAi !== game.maxPlayers) {
+    return {
+      ok: false,
+      error: '사람과 AI 합계는 2명 또는 3명이어야 시작할 수 있습니다',
+    };
+  }
+  return { ok: true };
+}
+
 function chooseMove(game, playerIdx) {
   const player = game.players[playerIdx];
   if (!player) return null;
@@ -239,15 +258,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const humans = game.players.filter((p) => !p.isAI).length;
-    const targetHumans = game.targetHumanCount ?? game.maxPlayers;
-    if (humans !== targetHumans) {
-      socket.emit('errorMsg', `사람 플레이어 ${targetHumans}명이 되어야 시작할 수 있습니다`);
-      return;
-    }
-    const targetAi = game.numAI;
-    if (humans + targetAi !== game.maxPlayers) {
-      socket.emit('errorMsg', '사람과 AI 합계는 2명 또는 3명이어야 시작할 수 있습니다');
+    const check = validateLobbyStart(game);
+    if (!check.ok) {
+      socket.emit('errorMsg', check.error);
       return;
     }
 
@@ -279,6 +292,110 @@ io.on('connection', (socket) => {
     game.numAI = a;
     game.maxPlayers = total;
     emitState(game);
+  });
+
+  socket.on('backToLobby', () => {
+    const found = findGameBySocketId(socket.id);
+    if (!found) {
+      socket.emit('errorMsg', '방 정보를 찾을 수 없습니다. 페이지를 새로고침 후 다시 시도해 주세요');
+      return;
+    }
+    const { game } = found;
+    if (game.hostId !== socket.id) {
+      socket.emit('errorMsg', '방장만 로비로 돌아갈 수 있습니다');
+      return;
+    }
+    if (game.status !== 'finished') {
+      socket.emit('errorMsg', '게임이 끝난 뒤에만 로비로 갈 수 있습니다');
+      return;
+    }
+    game.resetToLobby();
+    game.logMsg('로비로 돌아왔습니다. 방장이 게임 시작을 눌러주세요.');
+    emitState(game);
+  });
+
+  socket.on('rematch', () => {
+    const found = findGameBySocketId(socket.id);
+    if (!found) {
+      socket.emit('errorMsg', '방 정보를 찾을 수 없습니다. 페이지를 새로고침 후 다시 시도해 주세요');
+      return;
+    }
+    const { game } = found;
+    if (game.hostId !== socket.id) {
+      socket.emit('errorMsg', '방장만 바로 다시 시작할 수 있습니다');
+      return;
+    }
+    if (game.status !== 'finished') {
+      socket.emit('errorMsg', '게임이 끝난 뒤에만 다시 시작할 수 있습니다');
+      return;
+    }
+    game.resetToLobby();
+    const check = validateLobbyStart(game);
+    if (!check.ok) {
+      game.logMsg(`다시 시작 불가: ${check.error}`);
+      emitState(game);
+      socket.emit('errorMsg', check.error);
+      return;
+    }
+    game.startGame();
+    emitState(game);
+    runAiTurns(game);
+  });
+
+  socket.on('leaveRoom', () => {
+    const found = findGameBySocketId(socket.id);
+    if (!found) {
+      socket.emit('leftRoom');
+      return;
+    }
+    const { game, idx, role } = found;
+    const code = game.code;
+
+    if (role === 'spectator') {
+      const wasHost = game.hostId === socket.id;
+      game.spectators = (game.spectators || []).filter((s) => s.id !== socket.id);
+      socket.leave(code);
+      if (wasHost) {
+        const nextSpec =
+          (game.spectators || []).find((s) => !s.disconnected) || game.spectators[0];
+        if (nextSpec) {
+          game.hostId = nextSpec.id;
+          game.logMsg(`${nextSpec.name}(이)가 방장이 되었습니다`);
+        } else {
+          const nextHuman =
+            game.players.find((p) => !p.isAI && !p.disconnected) ||
+            game.players.find((p) => !p.isAI);
+          if (nextHuman) {
+            game.hostId = nextHuman.id;
+            game.logMsg(`${nextHuman.name}(이)가 방장이 되었습니다`);
+          } else {
+            games.delete(code);
+            socket.emit('leftRoom');
+            return;
+          }
+        }
+        emitState(game);
+      } else {
+        emitState(game);
+      }
+      socket.emit('leftRoom');
+      return;
+    }
+
+    if (game.status === 'playing') {
+      socket.emit('errorMsg', '진행 중에는 방을 나갈 수 없습니다');
+      return;
+    }
+    game.players.splice(idx, 1);
+    socket.leave(code);
+    const humanLeft = game.players.filter((p) => !p.isAI).length;
+    const specCount = (game.spectators || []).length;
+    if (humanLeft === 0 && specCount === 0) {
+      games.delete(code);
+    } else {
+      emitState(game);
+    }
+    socket.emit('leftRoom');
   });
 
   socket.on('playCard', ({ cardIndex, row, col }) => {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sequence Online</title>
-    <link rel="stylesheet" href="/styles.css?v=18" />
+    <link rel="stylesheet" href="/styles.css?v=19" />
   </head>
   <body>
     <div id="resultBanner" class="result-banner" hidden>
@@ -48,8 +48,12 @@
           <div>상태: <span id="status">대기</span></div>
           <p id="lobbyHint" class="small"></p>
         </div>
-        <div>
+        <div class="lobby-actions">
           <button id="startBtn" disabled>게임 시작</button>
+          <div id="postGameBar" class="post-game-actions" hidden>
+            <button id="rematchBtn" type="button">게임 다시하기</button>
+            <button id="backToLobbyBtn" type="button">로비로 나가기</button>
+          </div>
         </div>
       </section>
 
@@ -77,6 +81,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/main.js?v=18"></script>
+    <script src="/main.js?v=19"></script>
   </body>
 </html>

@@ -174,7 +174,7 @@ class GameState {
     const colors = ['#3b82f6', '#ef4444', '#22c55e', '#eab308'];
     const idx = this.players.length;
     this.players.push({
-      id: `ai_${idx}`,
+      id: `ai_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name: name || `AI ${idx}`,
       isHost: false,
       isAI: true,
@@ -185,8 +185,25 @@ class GameState {
     });
   }
 
+  /** 종료 후 로비로: AI 제거·보드 초기화(사람 플레이어·방 설정은 유지) */
+  resetToLobby() {
+    this.players = this.players.filter((p) => !p.isAI);
+    this.chips = Array.from({ length: 10 }, () => Array(10).fill(null));
+    this.sequences = [];
+    this.seqCellsUsed = new Set();
+    this.deck = [];
+    this.discardPile = [];
+    this.currentPlayer = 0;
+    this.winner = null;
+    this.status = 'lobby';
+    this.plyCount = 0;
+    for (const p of this.players) {
+      p.hand = [];
+    }
+  }
+
   startGame() {
-    // Add AI players
+    this.players = this.players.filter((p) => !p.isAI);
     const aiNames = ['강한 AI', '보통 AI', '약한 AI', '전략 AI'];
     for (let i = 0; i < this.numAI; i++) {
       this.addAI(aiNames[i] || `AI ${i + 1}`);
