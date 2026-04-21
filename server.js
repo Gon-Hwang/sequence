@@ -153,9 +153,12 @@ function runAiTurns(game, delayMs = 600) {
     if (!p || !p.isAI) return;
 
     const move = chooseMove(game, cp);
-    if (!move) return;
-
-    if (move.type === 'play') {
+    if (!move) {
+      const handSize = game.players[cp].hand.length;
+      if (handSize > 0) {
+        game.aiForceDiscardAnyCard(cp, 0);
+      }
+    } else if (move.type === 'play') {
       game.playCard(cp, move.cardIndex, move.row, move.col);
     } else if (move.type === 'discard') {
       game.discardDeadCard(cp, move.cardIndex);

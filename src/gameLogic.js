@@ -287,6 +287,20 @@ class GameState {
     return { success: true };
   }
 
+  // AI 전용 비상 탈출: 교착(예: 한눈 잭만 있는데 제거할 상대 칩이 없음)일 때 턴이 멈추지 않게 처리
+  aiForceDiscardAnyCard(playerIdx, cardIndex) {
+    const player = this.players[playerIdx];
+    const card = player.hand[cardIndex];
+    if (!card) return { success: false, error: 'Invalid card' };
+    this.discardPile.push(card);
+    player.hand.splice(cardIndex, 1);
+    const newCards = this.drawCards(1);
+    player.hand.push(...newCards);
+    this.logMsg(`${player.name}이(가) ${card}를 강제로 버렸습니다(AI)`);
+    this.nextTurn();
+    return { success: true };
+  }
+
   seqsToWin() {
     if (this.players.length <= 2) return 2;
     if (this.players.length === 3) return 1;
