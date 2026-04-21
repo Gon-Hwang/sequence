@@ -202,16 +202,6 @@ function hoverLocateHintForCell(r, c, card) {
   return null;
 }
 
-function syncAiSelectToHuman() {
-  const h = Number(humanCountInput.value);
-  aiCountInput.value = String(Math.max(0, 3 - h));
-}
-
-function syncHumanSelectToAi() {
-  const a = Number(aiCountInput.value);
-  humanCountInput.value = String(Math.max(0, 3 - a));
-}
-
 function readLobbyComposition() {
   return {
     humanCount: Number(humanCountInput.value),
@@ -220,15 +210,14 @@ function readLobbyComposition() {
 }
 
 function validateComposition(h, a) {
-  return h >= 0 && h <= 3 && a >= 0 && a <= 3 && h + a === 3;
+  const total = h + a;
+  return h >= 0 && h <= 3 && a >= 0 && a <= 3 && (total === 2 || total === 3);
 }
-
-syncAiSelectToHuman();
 
 createBtn.onclick = () => {
   const { humanCount, aiCount } = readLobbyComposition();
   if (!validateComposition(humanCount, aiCount)) {
-    alert('사람과 AI 합계가 3이어야 합니다');
+    alert('사람과 AI 합계는 2명 또는 3명이어야 합니다');
     return;
   }
   socket.emit('createGame', {
@@ -248,7 +237,7 @@ joinBtn.onclick = () => {
 startBtn.onclick = () => {
   if (startBtn.disabled) {
     if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
-      const targetHumans = state.targetHumanCount ?? 3;
+      const targetHumans = state.targetHumanCount ?? state.maxPlayers ?? 3;
       const joinedHumans = (state.players || []).filter((p) => !p.isAI).length;
       if (targetHumans > 0 && joinedHumans < targetHumans) {
         alert(
@@ -262,17 +251,17 @@ startBtn.onclick = () => {
 };
 
 humanCountInput.onchange = () => {
-  syncAiSelectToHuman();
   if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
     const { humanCount, aiCount } = readLobbyComposition();
+    if (!validateComposition(humanCount, aiCount)) return;
     socket.emit('updateLobbyComposition', { humanCount, aiCount });
   }
 };
 
 aiCountInput.onchange = () => {
-  syncHumanSelectToAi();
   if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
     const { humanCount, aiCount } = readLobbyComposition();
+    if (!validateComposition(humanCount, aiCount)) return;
     socket.emit('updateLobbyComposition', { humanCount, aiCount });
   }
 };
@@ -305,7 +294,7 @@ function renderPlayers() {
     .join(', ')}`;
   if (state.status === 'lobby') {
     const humans = state.players.filter((p) => !p.isAI).length;
-    const target = state.targetHumanCount ?? 3;
+    const target = state.targetHumanCount ?? state.maxPlayers ?? 3;
     const targetAi = state.numAI ?? 0;
     spectatorsEl.textContent += ` | 사람 ${humans}/${target}, AI ${targetAi}명`;
   }
@@ -573,7 +562,7 @@ function renderState() {
           ? '종료'
           : state.status;
   statusEl.textContent = statusLabel;
-  const targetHumans = state.targetHumanCount ?? 3;
+  const targetHumans = state.targetHumanCount ?? state.maxPlayers ?? 3;
   const joinedHumans = (state.players || []).filter((p) => !p.isAI).length;
   const canStartLobby =
     state.status === 'lobby' &&
@@ -634,9 +623,8 @@ function renderState() {
 socket.on('state', (s) => {
   state = s;
   if (s.status === 'lobby') {
-    humanCountInput.value = String(s.targetHumanCount ?? 3);
+    humanCountInput.value = String(s.targetHumanCount ?? s.maxPlayers ?? 3);
     aiCountInput.value = String(s.numAI ?? 0);
-    syncAiSelectToHuman();
   }
   renderState();
 });

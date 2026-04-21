@@ -15,6 +15,7 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const games = new Map();
+const ALLOWED_TOTALS = new Set([2, 3]);
 
 app.use(
   express.static(path.join(__dirname, 'public'), {
@@ -185,16 +186,16 @@ function runAiTurns(game, delayMs = 600) {
 io.on('connection', (socket) => {
   socket.on('createGame', ({ name, humanCount, aiCount }) => {
     const safeName = String(name || '').trim().slice(0, 20) || '방장';
-    const safeMax = 3;
-    const h = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
-    const a = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
-    if (h + a !== safeMax) {
-      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 합니다');
+    const h = Math.max(0, Math.min(Number(humanCount) || 0, 3));
+    const a = Math.max(0, Math.min(Number(aiCount) || 0, 3));
+    const total = h + a;
+    if (!ALLOWED_TOTALS.has(total)) {
+      socket.emit('errorMsg', '사람과 AI 합계는 2명 또는 3명이어야 합니다');
       return;
     }
 
     const code = createUniqueCode();
-    const game = new GameState(code, safeMax, a);
+    const game = new GameState(code, total, a);
     game.hostId = socket.id;
     game.spectators = [{ id: socket.id, name: safeName, disconnected: false }];
     game.targetHumanCount = h;
@@ -246,7 +247,7 @@ io.on('connection', (socket) => {
     }
     const targetAi = game.numAI;
     if (humans + targetAi !== game.maxPlayers) {
-      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 시작할 수 있습니다');
+      socket.emit('errorMsg', '사람과 AI 합계는 2명 또는 3명이어야 시작할 수 있습니다');
       return;
     }
 
@@ -262,11 +263,11 @@ io.on('connection', (socket) => {
     if (game.status !== 'lobby') return;
     if (game.hostId !== socket.id) return;
 
-    const safeMax = game.maxPlayers;
-    const h = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
-    const a = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
-    if (h + a !== safeMax) {
-      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 합니다');
+    const h = Math.max(0, Math.min(Number(humanCount) || 0, 3));
+    const a = Math.max(0, Math.min(Number(aiCount) || 0, 3));
+    const total = h + a;
+    if (!ALLOWED_TOTALS.has(total)) {
+      socket.emit('errorMsg', '사람과 AI 합계는 2명 또는 3명이어야 합니다');
       return;
     }
     const joinedHumans = game.players.filter((p) => !p.isAI).length;
@@ -276,6 +277,7 @@ io.on('connection', (socket) => {
     }
     game.targetHumanCount = h;
     game.numAI = a;
+    game.maxPlayers = total;
     emitState(game);
   });
 
