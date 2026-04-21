@@ -110,6 +110,8 @@ button:disabled {
   text-align: center;
   cursor: pointer;
   position: relative;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .cell.free {

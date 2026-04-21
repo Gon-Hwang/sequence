@@ -269,6 +269,28 @@ function renderBoard() {
   const chips = state.chips;
   const selectedCard = getSelectedCard();
 
+  function tryPlayAt(r, c) {
+    if (!state) return;
+    if (state.status !== 'playing') {
+      selectedCardInfo.textContent = '아직 게임이 시작되지 않았습니다. 방장이 게임 시작을 눌러주세요.';
+      return;
+    }
+    if (myIndex < 0) {
+      selectedCardInfo.textContent =
+        '지금은 관전(또는 플레이어로 인식되지 않음) 상태입니다. 플레이어로 방에 참가해야 말을 둘 수 있습니다.';
+      return;
+    }
+    if (!isMyTurn()) {
+      selectedCardInfo.textContent = '지금은 당신의 턴이 아닙니다. 플레이어 목록에서 현재 턴을 확인하세요.';
+      return;
+    }
+    if (selectedCardIndex === null) {
+      selectedCardInfo.textContent = '먼저 아래 손패에서 카드를 선택한 뒤, 보드 칸을 눌러주세요.';
+      return;
+    }
+    socket.emit('playCard', { cardIndex: selectedCardIndex, row: r, col: c });
+  }
+
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 10; c++) {
       const cell = document.createElement('div');
@@ -319,11 +341,10 @@ function renderBoard() {
         cell.classList.add('hint-dim');
       }
 
-      cell.onclick = () => {
-        if (!isMyTurn()) return;
-        if (selectedCardIndex === null) return;
-        socket.emit('playCard', { cardIndex: selectedCardIndex, row: r, col: c });
-      };
+      cell.addEventListener('pointerup', (e) => {
+        if (e.button === 2) return;
+        tryPlayAt(r, c);
+      });
       boardEl.appendChild(cell);
     }
   }
