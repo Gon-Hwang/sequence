@@ -15,6 +15,7 @@ const handEl = document.getElementById('hand');
 const boardEl = document.getElementById('board');
 const logEl = document.getElementById('log');
 const selectedCardInfo = document.getElementById('selectedCardInfo');
+const spectatorsEl = document.getElementById('spectators');
 
 let state = null;
 let myIndex = -1;
@@ -50,14 +51,22 @@ function renderPlayers() {
     const el = document.createElement('div');
     el.className = 'player' + (state.currentPlayer === idx ? ' my-turn' : '');
     const meTag = idx === myIndex ? ' (나)' : '';
-    const hostTag = p.isHost ? ' [방장]' : '';
     const aiTag = p.isAI ? ' [AI]' : '';
     const turnTag = state.currentPlayer === idx ? ' <- 현재 턴' : '';
     const disconnectTag = p.disconnected ? ' (연결 끊김)' : '';
-    el.textContent = `${p.name}${meTag}${hostTag}${aiTag}${disconnectTag} | 손패 ${p.handSize}장${turnTag}`;
+    el.textContent = `${p.name}${meTag}${aiTag}${disconnectTag} | 손패 ${p.handSize}장${turnTag}`;
     el.style.borderLeft = `6px solid ${p.color}`;
     playersEl.appendChild(el);
   });
+
+  const specs = state.spectators || [];
+  if (specs.length === 0) {
+    spectatorsEl.textContent = '관전자 없음';
+    return;
+  }
+  spectatorsEl.textContent = `관전자: ${specs
+    .map((s) => `${s.name}${s.isHost ? '(방장)' : ''}${s.disconnected ? '(끊김)' : ''}`)
+    .join(', ')}`;
 }
 
 function renderHand() {
@@ -129,7 +138,7 @@ function renderState() {
   myIndex = state.players.findIndex((p) => p.id === socket.id);
   roomCodeEl.textContent = state.code || '-';
   statusEl.textContent = state.status;
-  startBtn.disabled = !(state.status === 'lobby' && myIndex >= 0 && state.players[myIndex].isHost);
+  startBtn.disabled = !(state.status === 'lobby' && state.viewer && state.viewer.isHost);
   if (state.status !== 'playing') selectedCardIndex = null;
   renderPlayers();
   renderHand();

@@ -36,17 +36,36 @@ function createUniqueCode() {
 }
 
 function emitState(game) {
+  const recipients = new Set();
   for (const p of game.players) {
-    if (!p.isAI) {
-      io.to(p.id).emit('state', game.getPublicState(p.id));
-    }
+    if (!p.isAI) recipients.add(p.id);
+  }
+  for (const s of game.spectators || []) {
+    recipients.add(s.id);
+  }
+
+  for (const socketId of recipients) {
+    const publicState = game.getPublicState(socketId);
+    publicState.viewer = {
+      isHost: game.hostId === socketId,
+      isSpectator: (game.spectators || []).some((s) => s.id === socketId),
+    };
+    publicState.spectators = (game.spectators || []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      isHost: s.id === game.hostId,
+      disconnected: !!s.disconnected,
+    }));
+    io.to(socketId).emit('state', publicState);
   }
 }
 
 function findGameBySocketId(socketId) {
   for (const game of games.values()) {
     const idx = game.players.findIndex((p) => p.id === socketId);
-    if (idx !== -1) return { game, idx };
+    if (idx !== -1) return { game, idx, role: 'player' };
+    const spectatorIdx = (game.spectators || []).findIndex((s) => s.id === socketId);
+    if (spectatorIdx !== -1) return { game, spectatorIdx, role: 'spectator' };
   }
   return null;
 }
@@ -141,13 +160,14 @@ function runAiTurns(game, delayMs = 600) {
 
 io.on('connection', (socket) => {
   socket.on('createGame', ({ name, maxPlayers, aiCount }) => {
-    const safeName = String(name || '').trim().slice(0, 20) || '플레이어';
+    const safeName = String(name || '').trim().slice(0, 20) || '방장';
     const safeMax = [2, 3, 4].includes(Number(maxPlayers)) ? Number(maxPlayers) : 4;
-    const safeAi = Math.max(0, Math.min(Number(aiCount) || 0, safeMax - 1));
+    const safeAi = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
 
     const code = createUniqueCode();
     const game = new GameState(code, safeMax, safeAi);
-    game.addPlayer(socket.id, safeName, true);
+    game.hostId = socket.id;
+    game.spectators = [{ id: socket.id, name: safeName, disconnected: false }];
     games.set(code, game);
     socket.join(code);
     emitState(game);
@@ -177,9 +197,9 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     const found = findGameBySocketId(socket.id);
     if (!found) return;
-    const { game, idx } = found;
+    const { game } = found;
     if (game.status !== 'lobby') return;
-    if (!game.players[idx].isHost) {
+    if (game.hostId !== socket.id) {
       socket.emit('errorMsg', '방장만 시작할 수 있습니다');
       return;
     }
@@ -196,9 +216,9 @@ io.on('connection', (socket) => {
   socket.on('setAiCount', ({ aiCount }) => {
     const found = findGameBySocketId(socket.id);
     if (!found) return;
-    const { game, idx } = found;
+    const { game } = found;
     if (game.status !== 'lobby') return;
-    if (!game.players[idx].isHost) return;
+    if (game.hostId !== socket.id) return;
     const humans = game.players.filter((p) => !p.isAI).length;
     const maxAiAllowed = Math.max(0, game.maxPlayers - humans);
     game.numAI = Math.max(0, Math.min(Number(aiCount) || 0, maxAiAllowed));
@@ -236,9 +256,14 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const found = findGameBySocketId(socket.id);
     if (!found) return;
-    const { game, idx } = found;
-    game.players[idx].disconnected = true;
-    game.logMsg(`${game.players[idx].name} 연결이 종료되었습니다`);
+    const { game, idx, role } = found;
+    if (role === 'player') {
+      game.players[idx].disconnected = true;
+      game.logMsg(`${game.players[idx].name} 연결이 종료되었습니다`);
+    } else {
+      game.spectators[idx].disconnected = true;
+      game.logMsg(`${game.spectators[idx].name}(관전자) 연결이 종료되었습니다`);
+    }
     emitState(game);
   });
 });
