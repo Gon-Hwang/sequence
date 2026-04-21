@@ -115,7 +115,9 @@ button:disabled {
 }
 
 .cell.free {
-  background: #14532d;
+  background: linear-gradient(160deg, #1e1b4b 0%, #312e81 45%, #1e293b 100%);
+  border-color: #6366f1;
+  color: #e0e7ff;
 }
 
 .cell.hint-playable {
@@ -162,8 +164,9 @@ button:disabled {
 
 .cell.seq-line {
   z-index: 2;
-  animation: seqGlow 1.35s ease-in-out infinite;
   outline: 3px solid var(--seq-tone, #fbbf24);
+  outline-offset: 0;
+  animation: seqBorderPulse 1s ease-in-out infinite;
   box-shadow:
     0 0 0 2px rgba(15, 23, 42, 0.65),
     0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
@@ -171,7 +174,6 @@ button:disabled {
 
 .cell.seq-line--alt {
   outline-width: 3px;
-  filter: saturate(1.05);
 }
 
 .cell.seq-line--h.seq-line--start {
@@ -205,13 +207,26 @@ button:disabled {
   border-radius: 10px;
 }
 
-@keyframes seqGlow {
+@keyframes seqBorderPulse {
   0%,
   100% {
-    filter: brightness(1);
+    outline-color: color-mix(in srgb, var(--seq-tone, #fbbf24) 38%, transparent);
+    outline-width: 2px;
   }
   50% {
-    filter: brightness(1.18);
+    outline-color: var(--seq-tone, #fbbf24);
+    outline-width: 4px;
+  }
+}
+
+/* color-mix 미지원: 칩/배경에 filter·opacity 없이 테두리 두께만 깜빡임 */
+@keyframes seqBorderPulseFallback {
+  0%,
+  100% {
+    outline-width: 2px;
+  }
+  50% {
+    outline-width: 4px;
   }
 }
 
@@ -220,16 +235,19 @@ button:disabled {
     box-shadow:
       0 0 0 2px rgba(15, 23, 42, 0.65),
       0 0 16px rgba(251, 191, 36, 0.35);
+    animation-name: seqBorderPulseFallback;
   }
 }
 
 .chip {
   position: absolute;
+  z-index: 3;
   width: 14px;
   height: 14px;
   border-radius: 999px;
   bottom: 2px;
   right: 2px;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.92);
 }
 
 .log {

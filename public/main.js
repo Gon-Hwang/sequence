@@ -388,15 +388,17 @@ function renderBoard() {
       cell.dataset.c = String(c);
       cell.textContent = card;
 
+      const seqMeta = seqMap.get(cellKey(r, c));
       const owner = chips[r][c];
-      if (owner !== null) {
+      const chipOwner =
+        owner !== null ? owner : card === 'FREE' && seqMeta ? seqMeta.owner : null;
+      if (chipOwner !== null) {
         const chip = document.createElement('span');
         chip.className = 'chip';
-        chip.style.background = state.players[owner].color;
+        chip.style.background = state.players[chipOwner]?.color || '#94a3b8';
         cell.appendChild(chip);
       }
 
-      const seqMeta = seqMap.get(cellKey(r, c));
       if (seqMeta) {
         const tone = state.players[seqMeta.owner]?.color || '#fbbf24';
         cell.style.setProperty('--seq-tone', tone);
