@@ -62,6 +62,83 @@ function cellKey(r, c) {
   return `${r},${c}`;
 }
 
+function gcd(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
+function normalizeDelta(dr, dc) {
+  if (dr === 0 && dc === 0) return { dr: 0, dc: 1 };
+  const g = gcd(dr, dc);
+  return { dr: dr / g, dc: dc / g };
+}
+
+function inferLineDirection(cells) {
+  const pts = [...cells].sort((a, b) => (a.r - b.r) || (a.c - b.c));
+  let p0 = pts[0];
+  let p1 = null;
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].r !== p0.r || pts[i].c !== p0.c) {
+      p1 = pts[i];
+      break;
+    }
+  }
+  if (!p1) return { dr: 0, dc: 1 };
+  return normalizeDelta(p1.r - p0.r, p1.c - p0.c);
+}
+
+function orderCellsAlongLine(cells, dr, dc) {
+  const score = (p) => p.r * dr + p.c * dc;
+  return [...cells].sort((a, b) => score(a) - score(b));
+}
+
+function axisFromDelta(dr, dc) {
+  if (dr === 0) return 'h';
+  if (dc === 0) return 'v';
+  if (dr === 1 && dc === 1) return 'd1';
+  if (dr === 1 && dc === -1) return 'd2';
+  return 'h';
+}
+
+function buildSequenceHighlightMap(st) {
+  const map = new Map();
+  if (!st || !Array.isArray(st.sequences)) return map;
+
+  let seqId = 0;
+  for (const seq of st.sequences) {
+    const raw = seq.cells || [];
+    if (raw.length === 0) {
+      seqId += 1;
+      continue;
+    }
+
+    const cells = raw.map((cell) => ({ r: cell.r, c: cell.c }));
+    const { dr, dc } = inferLineDirection(cells);
+    const ordered = orderCellsAlongLine(cells, dr, dc);
+    const axis = axisFromDelta(dr, dc);
+    const len = ordered.length;
+
+    ordered.forEach((p, idx) => {
+      map.set(cellKey(p.r, p.c), {
+        owner: seq.owner,
+        axis,
+        idx,
+        len,
+        seqId,
+      });
+    });
+    seqId += 1;
+  }
+
+  return map;
+}
+
 function isCellInCompletedSequence(r, c) {
   const key = cellKey(r, c);
   return (state.sequences || []).some((seq) =>
@@ -278,6 +355,7 @@ function renderBoard() {
   const board = state.board;
   const chips = state.chips;
   const selectedCard = getSelectedCard();
+  const seqMap = buildSequenceHighlightMap(state);
 
   function tryPlayAt(r, c) {
     if (!state) return;
@@ -318,6 +396,16 @@ function renderBoard() {
         cell.appendChild(chip);
       }
 
+      const seqMeta = seqMap.get(cellKey(r, c));
+      if (seqMeta) {
+        const tone = state.players[seqMeta.owner]?.color || '#fbbf24';
+        cell.style.setProperty('--seq-tone', tone);
+        cell.classList.add('seq-line', `seq-line--${seqMeta.axis}`);
+        if (seqMeta.idx === 0) cell.classList.add('seq-line--start');
+        if (seqMeta.idx === seqMeta.len - 1) cell.classList.add('seq-line--end');
+        if (seqMeta.seqId % 2 === 1) cell.classList.add('seq-line--alt');
+      }
+
       const hint = hintForCell(r, c, selectedCard);
       if (hint === 'play' || hint === 'wild') {
         cell.classList.add('hint-playable');
@@ -343,6 +431,7 @@ function renderBoard() {
         selectedCard &&
         state.status === 'playing' &&
         isMyTurn() &&
+        !seqMeta &&
         !keepVisibleForHover &&
         hint !== 'play' &&
         hint !== 'wild' &&

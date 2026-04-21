@@ -160,6 +160,69 @@ button:disabled {
   box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.18);
 }
 
+.cell.seq-line {
+  z-index: 2;
+  animation: seqGlow 1.35s ease-in-out infinite;
+  outline: 3px solid var(--seq-tone, #fbbf24);
+  box-shadow:
+    0 0 0 2px rgba(15, 23, 42, 0.65),
+    0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+}
+
+.cell.seq-line--alt {
+  outline-width: 3px;
+  filter: saturate(1.05);
+}
+
+.cell.seq-line--h.seq-line--start {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  box-shadow: inset 6px 0 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+}
+
+.cell.seq-line--h.seq-line--end {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  box-shadow: inset -6px 0 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+}
+
+.cell.seq-line--v.seq-line--start {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  box-shadow: inset 0 6px 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+}
+
+.cell.seq-line--v.seq-line--end {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  box-shadow: inset 0 -6px 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+}
+
+.cell.seq-line--d1.seq-line--start,
+.cell.seq-line--d2.seq-line--start,
+.cell.seq-line--d1.seq-line--end,
+.cell.seq-line--d2.seq-line--end {
+  border-radius: 10px;
+}
+
+@keyframes seqGlow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
+@supports not (color-mix(in srgb, white, black)) {
+  .cell.seq-line {
+    box-shadow:
+      0 0 0 2px rgba(15, 23, 42, 0.65),
+      0 0 16px rgba(251, 191, 36, 0.35);
+  }
+}
+
 .chip {
   position: absolute;
   width: 14px;
