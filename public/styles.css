@@ -120,14 +120,25 @@ button:disabled {
 }
 
 .cell-label {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  font-size: 22px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 10px;
   line-height: 1;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #f8fafc;
+  letter-spacing: -0.03em;
+  color: #ffffff;
   text-shadow: 0 1px 2px rgba(2, 6, 23, 0.92);
+  pointer-events: none;
 }
 
 .cell.hint-playable {
@@ -258,10 +269,26 @@ button:disabled {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0.62;
+  opacity: 0.9;
+  border: 2px solid rgba(248, 250, 252, 0.38);
   box-shadow:
-    0 0 0 2px rgba(15, 23, 42, 0.92),
-    0 1px 7px rgba(15, 23, 42, 0.45);
+    inset 0 1px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 3px rgba(2, 6, 23, 0.45),
+    0 0 0 2px rgba(15, 23, 42, 0.95),
+    0 2px 7px rgba(2, 6, 23, 0.48);
+}
+
+.chip::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  width: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  filter: blur(0.3px);
+  pointer-events: none;
 }
 
 .log {
