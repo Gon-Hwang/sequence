@@ -251,7 +251,18 @@ function renderState() {
   myIndex = state.players.findIndex((p) => p.id === socket.id);
   roomCodeEl.textContent = state.code || '-';
   statusEl.textContent = state.status;
-  startBtn.disabled = !(state.status === 'lobby' && state.viewer && state.viewer.isHost);
+  const targetHumans = state.targetHumanCount ?? 3;
+  const joinedHumans = (state.players || []).filter((p) => !p.isAI).length;
+  const canStartLobby =
+    state.status === 'lobby' &&
+    state.viewer &&
+    state.viewer.isHost &&
+    (targetHumans === 0 || joinedHumans >= targetHumans);
+  startBtn.disabled = !canStartLobby;
+  startBtn.title =
+    state.status === 'lobby' && targetHumans > 0 && joinedHumans < targetHumans
+      ? `참가자 ${joinedHumans}/${targetHumans} — 인원이 맞아야 시작할 수 있습니다`
+      : '';
   if (state.status !== 'playing') selectedCardIndex = null;
   renderPlayers();
   renderHand();
