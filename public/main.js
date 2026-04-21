@@ -1,0 +1,147 @@
+const socket = io();
+
+const nameInput = document.getElementById('nameInput');
+const maxPlayersInput = document.getElementById('maxPlayersInput');
+const aiCountInput = document.getElementById('aiCountInput');
+const roomCodeInput = document.getElementById('roomCodeInput');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const startBtn = document.getElementById('startBtn');
+
+const roomCodeEl = document.getElementById('roomCode');
+const statusEl = document.getElementById('status');
+const playersEl = document.getElementById('players');
+const handEl = document.getElementById('hand');
+const boardEl = document.getElementById('board');
+const logEl = document.getElementById('log');
+const selectedCardInfo = document.getElementById('selectedCardInfo');
+
+let state = null;
+let myIndex = -1;
+let selectedCardIndex = null;
+
+createBtn.onclick = () => {
+  socket.emit('createGame', {
+    name: nameInput.value,
+    maxPlayers: Number(maxPlayersInput.value),
+    aiCount: Number(aiCountInput.value),
+  });
+};
+
+joinBtn.onclick = () => {
+  socket.emit('joinGame', {
+    name: nameInput.value,
+    code: roomCodeInput.value.trim().toUpperCase(),
+  });
+};
+
+startBtn.onclick = () => socket.emit('startGame');
+aiCountInput.onchange = () => {
+  socket.emit('setAiCount', { aiCount: Number(aiCountInput.value) });
+};
+
+function isMyTurn() {
+  return state && state.status === 'playing' && state.currentPlayer === myIndex;
+}
+
+function renderPlayers() {
+  playersEl.innerHTML = '';
+  state.players.forEach((p, idx) => {
+    const el = document.createElement('div');
+    el.className = 'player' + (state.currentPlayer === idx ? ' my-turn' : '');
+    const meTag = idx === myIndex ? ' (나)' : '';
+    const hostTag = p.isHost ? ' [방장]' : '';
+    const aiTag = p.isAI ? ' [AI]' : '';
+    const turnTag = state.currentPlayer === idx ? ' <- 현재 턴' : '';
+    const disconnectTag = p.disconnected ? ' (연결 끊김)' : '';
+    el.textContent = `${p.name}${meTag}${hostTag}${aiTag}${disconnectTag} | 손패 ${p.handSize}장${turnTag}`;
+    el.style.borderLeft = `6px solid ${p.color}`;
+    playersEl.appendChild(el);
+  });
+}
+
+function renderHand() {
+  handEl.innerHTML = '';
+  const me = state.players[myIndex];
+  const cards = (me && me.hand) || [];
+  cards.forEach((card, idx) => {
+    const btn = document.createElement('button');
+    btn.textContent = card;
+    if (selectedCardIndex === idx) btn.classList.add('selected');
+    btn.onclick = () => {
+      selectedCardIndex = idx;
+      renderHand();
+      selectedCardInfo.textContent = `선택 카드: ${card} / 보드를 클릭해 플레이 또는 데드카드 버리기`;
+    };
+    handEl.appendChild(btn);
+  });
+
+  const discardBtn = document.createElement('button');
+  discardBtn.textContent = '선택 카드 데드카드 버리기';
+  discardBtn.disabled = selectedCardIndex === null || !isMyTurn();
+  discardBtn.onclick = () => {
+    socket.emit('discardDeadCard', { cardIndex: selectedCardIndex });
+  };
+  handEl.appendChild(discardBtn);
+}
+
+function renderBoard() {
+  boardEl.innerHTML = '';
+  const board = state.board;
+  const chips = state.chips;
+
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const cell = document.createElement('div');
+      const card = board[r][c];
+      cell.className = 'cell' + (card === 'FREE' ? ' free' : '');
+      cell.textContent = card;
+
+      const owner = chips[r][c];
+      if (owner !== null) {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.style.background = state.players[owner].color;
+        cell.appendChild(chip);
+      }
+
+      cell.onclick = () => {
+        if (!isMyTurn()) return;
+        if (selectedCardIndex === null) return;
+        socket.emit('playCard', { cardIndex: selectedCardIndex, row: r, col: c });
+      };
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function renderLog() {
+  logEl.innerHTML = '';
+  (state.log || []).slice().reverse().forEach((item) => {
+    const div = document.createElement('div');
+    div.textContent = item.msg;
+    logEl.appendChild(div);
+  });
+}
+
+function renderState() {
+  if (!state) return;
+  myIndex = state.players.findIndex((p) => p.id === socket.id);
+  roomCodeEl.textContent = state.code || '-';
+  statusEl.textContent = state.status;
+  startBtn.disabled = !(state.status === 'lobby' && myIndex >= 0 && state.players[myIndex].isHost);
+  if (state.status !== 'playing') selectedCardIndex = null;
+  renderPlayers();
+  renderHand();
+  renderBoard();
+  renderLog();
+}
+
+socket.on('state', (s) => {
+  state = s;
+  renderState();
+});
+
+socket.on('errorMsg', (msg) => {
+  alert(msg);
+});
