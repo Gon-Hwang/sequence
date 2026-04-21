@@ -75,7 +75,7 @@ const DIRS = [[0,1],[1,0],[1,1],[1,-1]];
 
 function findNewSequences(chips, existingSeqCells, lastR, lastC) {
   const owner = chips[lastR][lastC];
-  if (!owner) return [];
+  if (owner === null || owner === undefined) return [];
   const newSeqs = [];
 
   for (const [dr, dc] of DIRS) {
