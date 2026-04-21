@@ -83,6 +83,10 @@ button:disabled {
   gap: 6px;
 }
 
+.hand button {
+  touch-action: manipulation;
+}
+
 .hand button.selected {
   border-color: #f59e0b;
 }

@@ -21,6 +21,19 @@ let state = null;
 let myIndex = -1;
 let selectedCardIndex = null;
 let hoverCard = null;
+let handHoverGlobalsBound = false;
+
+function clearHandHoverPreview() {
+  hoverCard = null;
+  if (state && state.status === 'playing') renderBoard();
+}
+
+function bindHandHoverGlobalsOnce() {
+  if (handHoverGlobalsBound) return;
+  handHoverGlobalsBound = true;
+  window.addEventListener('pointerup', clearHandHoverPreview);
+  window.addEventListener('pointercancel', clearHandHoverPreview);
+}
 
 const ONE_EYE_JACKS = new Set(['JS', 'JH']);
 const TWO_EYE_JACKS = new Set(['JD', 'JC']);
@@ -197,6 +210,7 @@ function renderPlayers() {
 
 function renderHand() {
   handEl.innerHTML = '';
+  bindHandHoverGlobalsOnce();
   const me = state.players[myIndex];
   const cards = (me && me.hand) || [];
   cards.forEach((card, idx) => {
@@ -204,6 +218,10 @@ function renderHand() {
     btn.textContent = card;
     if (selectedCardIndex === idx) btn.classList.add('selected');
     btn.addEventListener('pointerenter', () => {
+      hoverCard = card;
+      if (state && state.status === 'playing') renderBoard();
+    });
+    btn.addEventListener('pointerdown', () => {
       hoverCard = card;
       if (state && state.status === 'playing') renderBoard();
     });
@@ -225,8 +243,7 @@ function renderHand() {
   handEl.appendChild(discardBtn);
 
   handEl.onmouseleave = () => {
-    hoverCard = null;
-    if (state && state.status === 'playing') renderBoard();
+    clearHandHoverPreview();
   };
 }
 
