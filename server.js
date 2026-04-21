@@ -159,17 +159,21 @@ function runAiTurns(game, delayMs = 600) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('createGame', ({ name, humanCount }) => {
+  socket.on('createGame', ({ name, humanCount, aiCount }) => {
     const safeName = String(name || '').trim().slice(0, 20) || '방장';
     const safeMax = 3;
-    const safeHumans = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
-    const safeAi = safeMax - safeHumans;
+    const h = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
+    const a = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
+    if (h + a !== safeMax) {
+      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 합니다');
+      return;
+    }
 
     const code = createUniqueCode();
-    const game = new GameState(code, safeMax, safeAi);
+    const game = new GameState(code, safeMax, a);
     game.hostId = socket.id;
     game.spectators = [{ id: socket.id, name: safeName, disconnected: false }];
-    game.targetHumanCount = safeHumans;
+    game.targetHumanCount = h;
     games.set(code, game);
     socket.join(code);
     emitState(game);
@@ -213,11 +217,39 @@ io.on('connection', (socket) => {
       socket.emit('errorMsg', `사람 플레이어 ${targetHumans}명이 되어야 시작할 수 있습니다`);
       return;
     }
-    game.numAI = Math.max(0, game.maxPlayers - humans);
+    const targetAi = game.numAI;
+    if (humans + targetAi !== game.maxPlayers) {
+      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 시작할 수 있습니다');
+      return;
+    }
 
     game.startGame();
     emitState(game);
     runAiTurns(game);
+  });
+
+  socket.on('updateLobbyComposition', ({ humanCount, aiCount }) => {
+    const found = findGameBySocketId(socket.id);
+    if (!found) return;
+    const { game } = found;
+    if (game.status !== 'lobby') return;
+    if (game.hostId !== socket.id) return;
+
+    const safeMax = game.maxPlayers;
+    const h = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
+    const a = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
+    if (h + a !== safeMax) {
+      socket.emit('errorMsg', '사람과 AI 합계가 3이어야 합니다');
+      return;
+    }
+    const joinedHumans = game.players.filter((p) => !p.isAI).length;
+    if (joinedHumans > h) {
+      socket.emit('errorMsg', '이미 들어온 사람 플레이어보다 적게 설정할 수 없습니다');
+      return;
+    }
+    game.targetHumanCount = h;
+    game.numAI = a;
+    emitState(game);
   });
 
   socket.on('playCard', ({ cardIndex, row, col }) => {

@@ -2,6 +2,7 @@ const socket = io();
 
 const nameInput = document.getElementById('nameInput');
 const humanCountInput = document.getElementById('humanCountInput');
+const aiCountInput = document.getElementById('aiCountInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const createBtn = document.getElementById('createBtn');
 const joinBtn = document.getElementById('joinBtn');
@@ -20,10 +21,39 @@ let state = null;
 let myIndex = -1;
 let selectedCardIndex = null;
 
+function syncAiSelectToHuman() {
+  const h = Number(humanCountInput.value);
+  aiCountInput.value = String(Math.max(0, 3 - h));
+}
+
+function syncHumanSelectToAi() {
+  const a = Number(aiCountInput.value);
+  humanCountInput.value = String(Math.max(0, 3 - a));
+}
+
+function readLobbyComposition() {
+  return {
+    humanCount: Number(humanCountInput.value),
+    aiCount: Number(aiCountInput.value),
+  };
+}
+
+function validateComposition(h, a) {
+  return h >= 0 && h <= 3 && a >= 0 && a <= 3 && h + a === 3;
+}
+
+syncAiSelectToHuman();
+
 createBtn.onclick = () => {
+  const { humanCount, aiCount } = readLobbyComposition();
+  if (!validateComposition(humanCount, aiCount)) {
+    alert('사람과 AI 합계가 3이어야 합니다');
+    return;
+  }
   socket.emit('createGame', {
     name: nameInput.value,
-    humanCount: Number(humanCountInput.value),
+    humanCount,
+    aiCount,
   });
 };
 
@@ -35,6 +65,22 @@ joinBtn.onclick = () => {
 };
 
 startBtn.onclick = () => socket.emit('startGame');
+
+humanCountInput.onchange = () => {
+  syncAiSelectToHuman();
+  if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
+    const { humanCount, aiCount } = readLobbyComposition();
+    socket.emit('updateLobbyComposition', { humanCount, aiCount });
+  }
+};
+
+aiCountInput.onchange = () => {
+  syncHumanSelectToAi();
+  if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
+    const { humanCount, aiCount } = readLobbyComposition();
+    socket.emit('updateLobbyComposition', { humanCount, aiCount });
+  }
+};
 
 function isMyTurn() {
   return state && state.status === 'playing' && state.currentPlayer === myIndex;
@@ -65,8 +111,8 @@ function renderPlayers() {
   if (state.status === 'lobby') {
     const humans = state.players.filter((p) => !p.isAI).length;
     const target = state.targetHumanCount ?? 3;
-    const aiAuto = Math.max(0, 3 - target);
-    spectatorsEl.textContent += ` | 사람 ${humans}/${target}, AI 자동 ${aiAuto}명`;
+    const targetAi = state.numAI ?? 0;
+    spectatorsEl.textContent += ` | 사람 ${humans}/${target}, AI ${targetAi}명`;
   }
 }
 
@@ -149,6 +195,10 @@ function renderState() {
 
 socket.on('state', (s) => {
   state = s;
+  if (s.status === 'lobby') {
+    humanCountInput.value = String(s.targetHumanCount ?? 3);
+    aiCountInput.value = String(s.numAI ?? 0);
+  }
   renderState();
 });
 
