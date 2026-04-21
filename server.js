@@ -16,7 +16,15 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const games = new Map();
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    setHeaders(res, filePath) {
+      if (/\.(html|js|css)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'no-store');
+      }
+    },
+  }),
+);
 
 function randomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

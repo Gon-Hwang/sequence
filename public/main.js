@@ -52,7 +52,7 @@ function getSelectedCard() {
 
 function hintForCell(r, c, selectedCard) {
   if (!state || state.status !== 'playing') return null;
-  if (!isMyTurn()) return null;
+  if (myIndex < 0) return null;
   if (!selectedCard) return null;
 
   const boardCard = state.board[r][c];
@@ -181,7 +181,7 @@ function renderHand() {
       selectedCardIndex = idx;
       renderHand();
       selectedCardInfo.textContent =
-        `선택 카드: ${card} / 보드에서 강조된 칸을 눌러 플레이 (데드카드는 아래 버튼)`;
+        `선택 카드: ${card} / 보드에서 해당 위치가 강조됩니다 (실제 두기는 내 턴에만 가능, 데드카드는 아래 버튼)`;
     };
     handEl.appendChild(btn);
   });
