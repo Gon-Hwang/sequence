@@ -272,6 +272,10 @@ function isMyTurn() {
 
 function renderPlayers() {
   playersEl.innerHTML = '';
+  const neededSeq = Number(state.seqsToWin || 1);
+  const seqCounts = state.players.map((_, i) =>
+    (state.sequences || []).filter((s) => s.owner === i).length,
+  );
   state.players.forEach((p, idx) => {
     const el = document.createElement('div');
     el.className = 'player' + (state.currentPlayer === idx ? ' my-turn' : '');
@@ -279,7 +283,9 @@ function renderPlayers() {
     const aiTag = p.isAI ? ' [AI]' : '';
     const turnTag = state.currentPlayer === idx ? ' <- 현재 턴' : '';
     const disconnectTag = p.disconnected ? ' (연결 끊김)' : '';
-    el.textContent = `${p.name}${meTag}${aiTag}${disconnectTag} | 손패 ${p.handSize}장${turnTag}`;
+    const mySeq = seqCounts[idx] || 0;
+    const seqTag = `시퀀스 ${mySeq}/${neededSeq}`;
+    el.textContent = `${p.name}${meTag}${aiTag}${disconnectTag} | 손패 ${p.handSize}장 | ${seqTag}${turnTag}`;
     el.style.borderLeft = `6px solid ${p.color}`;
     playersEl.appendChild(el);
   });
