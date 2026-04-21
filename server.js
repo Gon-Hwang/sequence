@@ -159,15 +159,17 @@ function runAiTurns(game, delayMs = 600) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('createGame', ({ name, aiCount }) => {
+  socket.on('createGame', ({ name, humanCount }) => {
     const safeName = String(name || '').trim().slice(0, 20) || '방장';
     const safeMax = 3;
-    const safeAi = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
+    const safeHumans = Math.max(0, Math.min(Number(humanCount) || 0, safeMax));
+    const safeAi = safeMax - safeHumans;
 
     const code = createUniqueCode();
     const game = new GameState(code, safeMax, safeAi);
     game.hostId = socket.id;
     game.spectators = [{ id: socket.id, name: safeName, disconnected: false }];
+    game.targetHumanCount = safeHumans;
     games.set(code, game);
     socket.join(code);
     emitState(game);
@@ -184,7 +186,8 @@ io.on('connection', (socket) => {
       return;
     }
     const humans = game.players.filter((p) => !p.isAI).length;
-    if (humans >= game.maxPlayers) {
+    const targetHumans = game.targetHumanCount ?? game.maxPlayers;
+    if (humans >= targetHumans) {
       socket.emit('errorMsg', '방 정원이 가득 찼습니다');
       return;
     }
@@ -205,24 +208,16 @@ io.on('connection', (socket) => {
     }
 
     const humans = game.players.filter((p) => !p.isAI).length;
-    const maxAiAllowed = Math.max(0, game.maxPlayers - humans);
-    game.numAI = Math.min(game.numAI, maxAiAllowed);
+    const targetHumans = game.targetHumanCount ?? game.maxPlayers;
+    if (humans !== targetHumans) {
+      socket.emit('errorMsg', `사람 플레이어 ${targetHumans}명이 되어야 시작할 수 있습니다`);
+      return;
+    }
+    game.numAI = Math.max(0, game.maxPlayers - humans);
 
     game.startGame();
     emitState(game);
     runAiTurns(game);
-  });
-
-  socket.on('setAiCount', ({ aiCount }) => {
-    const found = findGameBySocketId(socket.id);
-    if (!found) return;
-    const { game } = found;
-    if (game.status !== 'lobby') return;
-    if (game.hostId !== socket.id) return;
-    const humans = game.players.filter((p) => !p.isAI).length;
-    const maxAiAllowed = Math.max(0, game.maxPlayers - humans);
-    game.numAI = Math.max(0, Math.min(Number(aiCount) || 0, maxAiAllowed));
-    emitState(game);
   });
 
   socket.on('playCard', ({ cardIndex, row, col }) => {

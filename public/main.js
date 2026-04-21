@@ -1,7 +1,7 @@
 const socket = io();
 
 const nameInput = document.getElementById('nameInput');
-const aiCountInput = document.getElementById('aiCountInput');
+const humanCountInput = document.getElementById('humanCountInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const createBtn = document.getElementById('createBtn');
 const joinBtn = document.getElementById('joinBtn');
@@ -23,7 +23,7 @@ let selectedCardIndex = null;
 createBtn.onclick = () => {
   socket.emit('createGame', {
     name: nameInput.value,
-    aiCount: Number(aiCountInput.value),
+    humanCount: Number(humanCountInput.value),
   });
 };
 
@@ -35,9 +35,6 @@ joinBtn.onclick = () => {
 };
 
 startBtn.onclick = () => socket.emit('startGame');
-aiCountInput.onchange = () => {
-  socket.emit('setAiCount', { aiCount: Number(aiCountInput.value) });
-};
 
 function isMyTurn() {
   return state && state.status === 'playing' && state.currentPlayer === myIndex;
@@ -65,6 +62,12 @@ function renderPlayers() {
   spectatorsEl.textContent = `관전자: ${specs
     .map((s) => `${s.name}${s.isHost ? '(방장)' : ''}${s.disconnected ? '(끊김)' : ''}`)
     .join(', ')}`;
+  if (state.status === 'lobby') {
+    const humans = state.players.filter((p) => !p.isAI).length;
+    const target = state.targetHumanCount ?? 3;
+    const aiAuto = Math.max(0, 3 - target);
+    spectatorsEl.textContent += ` | 사람 ${humans}/${target}, AI 자동 ${aiAuto}명`;
+  }
 }
 
 function renderHand() {

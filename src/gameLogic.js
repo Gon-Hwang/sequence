@@ -358,6 +358,7 @@ class GameState {
       deckSize: this.deck.length,
       log: this.log.slice(-20),
       seqsToWin: this.seqsToWin(),
+      targetHumanCount: this.targetHumanCount ?? this.maxPlayers,
     };
   }
 
