@@ -21,6 +21,59 @@ let state = null;
 let myIndex = -1;
 let selectedCardIndex = null;
 
+const ONE_EYE_JACKS = new Set(['JS', 'JH']);
+const TWO_EYE_JACKS = new Set(['JD', 'JC']);
+
+function isOneEyeJack(card) {
+  return ONE_EYE_JACKS.has(card);
+}
+
+function isTwoEyeJack(card) {
+  return TWO_EYE_JACKS.has(card);
+}
+
+function cellKey(r, c) {
+  return `${r},${c}`;
+}
+
+function isCellInCompletedSequence(r, c) {
+  const key = cellKey(r, c);
+  return (state.sequences || []).some((seq) =>
+    seq.cells.some((cell) => cellKey(cell.r, cell.c) === key),
+  );
+}
+
+function getSelectedCard() {
+  if (selectedCardIndex === null) return null;
+  const me = state.players[myIndex];
+  const hand = (me && me.hand) || [];
+  return hand[selectedCardIndex] || null;
+}
+
+function hintForCell(r, c, selectedCard) {
+  if (!state || state.status !== 'playing') return null;
+  if (!isMyTurn()) return null;
+  if (!selectedCard) return null;
+
+  const boardCard = state.board[r][c];
+  const owner = state.chips[r][c];
+
+  if (isTwoEyeJack(selectedCard)) {
+    if (boardCard === 'FREE') return null;
+    if (owner === null) return 'wild';
+    return null;
+  }
+
+  if (isOneEyeJack(selectedCard)) {
+    if (owner === null || owner === myIndex) return null;
+    if (isCellInCompletedSequence(r, c)) return null;
+    return 'remove';
+  }
+
+  if (boardCard === selectedCard && owner === null) return 'play';
+  return null;
+}
+
 function syncAiSelectToHuman() {
   const h = Number(humanCountInput.value);
   aiCountInput.value = String(Math.max(0, 3 - h));
@@ -127,7 +180,8 @@ function renderHand() {
     btn.onclick = () => {
       selectedCardIndex = idx;
       renderHand();
-      selectedCardInfo.textContent = `선택 카드: ${card} / 보드를 클릭해 플레이 또는 데드카드 버리기`;
+      selectedCardInfo.textContent =
+        `선택 카드: ${card} / 보드에서 강조된 칸을 눌러 플레이 (데드카드는 아래 버튼)`;
     };
     handEl.appendChild(btn);
   });
@@ -145,12 +199,15 @@ function renderBoard() {
   boardEl.innerHTML = '';
   const board = state.board;
   const chips = state.chips;
+  const selectedCard = getSelectedCard();
 
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 10; c++) {
       const cell = document.createElement('div');
       const card = board[r][c];
       cell.className = 'cell' + (card === 'FREE' ? ' free' : '');
+      cell.dataset.r = String(r);
+      cell.dataset.c = String(c);
       cell.textContent = card;
 
       const owner = chips[r][c];
@@ -159,6 +216,15 @@ function renderBoard() {
         chip.className = 'chip';
         chip.style.background = state.players[owner].color;
         cell.appendChild(chip);
+      }
+
+      const hint = hintForCell(r, c, selectedCard);
+      if (hint === 'play' || hint === 'wild') {
+        cell.classList.add('hint-playable');
+      } else if (hint === 'remove') {
+        cell.classList.add('hint-removable');
+      } else if (selectedCard && state.status === 'playing' && isMyTurn()) {
+        cell.classList.add('hint-dim');
       }
 
       cell.onclick = () => {

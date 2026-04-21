@@ -112,6 +112,22 @@ button:disabled {
   background: #14532d;
 }
 
+.cell.hint-playable {
+  outline: 2px solid #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+  background: #1f2937;
+}
+
+.cell.hint-removable {
+  outline: 2px solid #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.22);
+  background: #1f2937;
+}
+
+.cell.hint-dim {
+  opacity: 0.35;
+}
+
 .chip {
   position: absolute;
   width: 14px;
