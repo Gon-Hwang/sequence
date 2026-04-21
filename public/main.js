@@ -8,6 +8,7 @@ const createBtn = document.getElementById('createBtn');
 const joinBtn = document.getElementById('joinBtn');
 const startBtn = document.getElementById('startBtn');
 const lobbyHintEl = document.getElementById('lobbyHint');
+const lobbyControlsEl = document.getElementById('lobbyControls');
 
 const roomCodeEl = document.getElementById('roomCode');
 const statusEl = document.getElementById('status');
@@ -341,7 +342,15 @@ function renderState() {
   if (!state) return;
   myIndex = state.players.findIndex((p) => p.id === socket.id);
   roomCodeEl.textContent = state.code || '-';
-  statusEl.textContent = state.status;
+  const statusLabel =
+    state.status === 'lobby'
+      ? '대기(로비)'
+      : state.status === 'playing'
+        ? '진행 중'
+        : state.status === 'finished'
+          ? '종료'
+          : state.status;
+  statusEl.textContent = statusLabel;
   const targetHumans = state.targetHumanCount ?? 3;
   const joinedHumans = (state.players || []).filter((p) => !p.isAI).length;
   const canStartLobby =
@@ -349,12 +358,13 @@ function renderState() {
     state.viewer &&
     state.viewer.isHost &&
     (targetHumans === 0 || joinedHumans >= targetHumans);
-  startBtn.disabled = !canStartLobby;
+  startBtn.disabled = !canStartLobby || state.status !== 'lobby';
   startBtn.title =
     state.status === 'lobby' && targetHumans > 0 && joinedHumans < targetHumans
       ? `참가자 ${joinedHumans}/${targetHumans} — 인원이 맞아야 시작할 수 있습니다`
       : '';
   if (state.status === 'lobby') {
+    startBtn.textContent = '게임 시작';
     const targetAi = state.numAI ?? 0;
     if (targetHumans === 0) {
       lobbyHintEl.textContent = `전원 AI(${targetAi}명) 구성: 방 생성 후 자동으로 시작됩니다.`;
@@ -363,8 +373,27 @@ function renderState() {
     } else {
       lobbyHintEl.textContent = `참가자(사람) ${joinedHumans}/${targetHumans} · AI ${targetAi}명`;
     }
+    lobbyControlsEl.style.opacity = '1';
+    lobbyControlsEl.style.pointerEvents = 'auto';
+  } else if (state.status === 'playing') {
+    startBtn.textContent = '진행 중';
+    if (state.viewer && state.viewer.isSpectator) {
+      lobbyHintEl.textContent =
+        '이미 게임이 시작되었습니다. 아래로 내려 “보드/플레이어/로그”를 확인하세요. (방장은 관전)';
+    } else {
+      lobbyHintEl.textContent = '이미 게임이 시작되었습니다. 아래 보드에서 진행하세요.';
+    }
+    lobbyControlsEl.style.opacity = '0.45';
+    lobbyControlsEl.style.pointerEvents = 'none';
+  } else if (state.status === 'finished') {
+    startBtn.textContent = '종료됨';
+    lobbyHintEl.textContent = '게임이 종료되었습니다. 새 방을 만들어 다시 플레이할 수 있습니다.';
+    lobbyControlsEl.style.opacity = '0.45';
+    lobbyControlsEl.style.pointerEvents = 'none';
   } else {
     lobbyHintEl.textContent = '';
+    lobbyControlsEl.style.opacity = '1';
+    lobbyControlsEl.style.pointerEvents = 'auto';
   }
   if (state.status !== 'playing') {
     selectedCardIndex = null;
