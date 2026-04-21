@@ -71,40 +71,68 @@ function buildCardPositions() {
 const CARD_POSITIONS = buildCardPositions();
 
 // ── Sequence Detection ─────────────────────────────────────────────────────────
-const DIRS = [[0,1],[1,0],[1,1],[1,-1]];
+const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
-function findNewSequences(chips, existingSeqCells, lastR, lastC) {
+/** 코너 FREE는 칩이 없어도 해당 플레이어 줄에 포함 (공식 규칙) */
+function cellCountsForSequence(chips, layout, runOwner, r, c) {
+  const isFree = layout[r][c] === 'FREE';
+  if (isFree) return true;
+  return chips[r][c] === runOwner;
+}
+
+/** (r0,c0)를 지나는 직선 방향 (dr,dc)에서 같은 줄 연속 칸 전체 */
+function expandStraightRun(chips, layout, runOwner, r0, c0, dr, dc) {
+  const cells = [{ r: r0, c: c0 }];
+  let r = r0;
+  let c = c0;
+  while (true) {
+    const nr = r + dr;
+    const nc = c + dc;
+    if (nr < 0 || nr > 9 || nc < 0 || nc > 9) break;
+    if (!cellCountsForSequence(chips, layout, runOwner, nr, nc)) break;
+    cells.push({ r: nr, c: nc });
+    r = nr;
+    c = nc;
+  }
+  r = r0;
+  c = c0;
+  while (true) {
+    const pr = r - dr;
+    const pc = c - dc;
+    if (pr < 0 || pr > 9 || pc < 0 || pc > 9) break;
+    if (!cellCountsForSequence(chips, layout, runOwner, pr, pc)) break;
+    cells.unshift({ r: pr, c: pc });
+    r = pr;
+    c = pc;
+  }
+  return cells;
+}
+
+function sequenceKeyFromCells(five) {
+  return five.map((x) => `${x.r},${x.c}`).sort().join('|');
+}
+
+/**
+ * 공식 Sequence: 두 시퀀스는 칩을 최대 1칸만 공유할 수 있음.
+ * 한 직선에서 인정되는 다섯 칸 묶음은 시작 위치가 4칸 간격(0,4,8,…)인 것뿐.
+ * 예: 칩 9개 일렬 → 앞 5 + 뒤 5가 가운데 1칸만 공유하며 시퀀스 2개.
+ */
+function findNewSequences(chips, existingSeqKeys, lastR, lastC) {
   const owner = chips[lastR][lastC];
   if (owner === null || owner === undefined) return [];
   const newSeqs = [];
+  const dedupeThisTurn = new Set();
 
   for (const [dr, dc] of DIRS) {
-    const line = [];
-    for (let k = -4; k <= 4; k++) {
-      const r = lastR + dr * k, c = lastC + dc * k;
-      if (r < 0 || r > 9 || c < 0 || c > 9) { line.push(null); continue; }
-      line.push({ r, c, owner: chips[r][c] });
-    }
-    // Find runs of 5+ same owner (FREE corners count for owner)
-    let run = [];
-    for (const cell of line) {
-      if (!cell) { run = []; continue; }
-      const cellOwner = chips[cell.r][cell.c];
-      const isFree = BOARD_LAYOUT[cell.r][cell.c] === 'FREE';
-      // free corner = neutral, can be used by anyone
-      if (cellOwner === owner || isFree) {
-        run.push(cell);
-        if (run.length >= 5) {
-          const cells = run.slice(-5).map(x => `${x.r},${x.c}`);
-          const key = cells.sort().join('|');
-          const alreadyUsed = existingSeqCells.has(key);
-          if (!alreadyUsed) {
-            newSeqs.push({ owner, cells: run.slice(-5), key });
-          }
-        }
-      } else {
-        run = [];
-      }
+    const run = expandStraightRun(chips, BOARD_LAYOUT, owner, lastR, lastC, dr, dc);
+    const L = run.length;
+    if (L < 5) continue;
+    for (let off = 0; off + 5 <= L; off += 4) {
+      const windowCells = run.slice(off, off + 5);
+      const key = sequenceKeyFromCells(windowCells);
+      if (existingSeqKeys.has(key) || dedupeThisTurn.has(key)) continue;
+      dedupeThisTurn.add(key);
+      newSeqs.push({ owner, cells: windowCells, key });
     }
   }
   return newSeqs;
@@ -145,6 +173,7 @@ class GameState {
     this.players = []; // { id, name, isHost, isAI, color, hand, team }
     this.chips = Array.from({ length: 10 }, () => Array(10).fill(null)); // chip owner index
     this.sequences = []; // [{owner, cells, key}]
+    /** 완성된 시퀀스마다 다섯 칸 집합 키(정렬된 "r,c" 조합) */
     this.seqCellsUsed = new Set();
     this.deck = [];
     this.discardPile = [];
@@ -285,7 +314,7 @@ class GameState {
     const newSeqs = findNewSequences(this.chips, this.seqCellsUsed, row, col);
     for (const seq of newSeqs) {
       seq.owner = playerIdx;
-      seq.cells.forEach(c => this.seqCellsUsed.add(`${c.r},${c.c}`));
+      this.seqCellsUsed.add(seq.key);
       this.sequences.push(seq);
       this.logMsg(`🎉 ${this.players[playerIdx].name}이(가) 시퀀스 완성!`);
     }

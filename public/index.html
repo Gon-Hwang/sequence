@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sequence Online</title>
-    <link rel="stylesheet" href="/styles.css?v=19" />
+    <link rel="stylesheet" href="/styles.css?v=20" />
   </head>
   <body>
     <div id="resultBanner" class="result-banner" hidden>
@@ -34,6 +34,17 @@
             <option value="3">AI 3명</option>
           </select>
           <div class="small">인원 합 2~3명: 사람 + AI = 2 또는 3 (방장은 관전이라 사람 N은 ‘참가자’ 기준)</div>
+          <details class="rule-details small">
+            <summary>시퀀스 규칙 (공식과 동일)</summary>
+            <p>
+              <strong>중복 사용 가능:</strong> 첫 번째 시퀀스(칩 5개)를 구성하는 칩 중 1개를 두 번째 시퀀스의
+              일부로 재사용할 수 있습니다.
+            </p>
+            <p>
+              <strong>9개 칩으로 2개 완성:</strong> 9개의 칩을 일렬로 놓으면, 앞쪽 5개(시퀀스 1)와 뒤쪽
+              5개(시퀀스 2)가 중간 칩 1개를 공유하며 2개의 시퀀스로 인정됩니다.
+            </p>
+          </details>
         </div>
         <div class="row">
           <button id="createBtn">방 만들기</button>
@@ -81,6 +92,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/main.js?v=19"></script>
+    <script src="/main.js?v=20"></script>
   </body>
 </html>

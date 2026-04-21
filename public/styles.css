@@ -60,6 +60,26 @@ body {
   white-space: nowrap;
 }
 
+.rule-details {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #0b1220;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.rule-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.rule-details p {
+  margin: 8px 0 0;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
 input,
 select,
 button {
