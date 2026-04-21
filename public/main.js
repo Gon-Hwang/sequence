@@ -367,7 +367,7 @@ function renderState() {
     startBtn.textContent = '게임 시작';
     const targetAi = state.numAI ?? 0;
     if (targetHumans === 0) {
-      lobbyHintEl.textContent = `전원 AI(${targetAi}명) 구성: 방 생성 후 자동으로 시작됩니다.`;
+      lobbyHintEl.textContent = `전원 AI(${targetAi}명) 구성: 준비되면 방장이 “게임 시작”을 눌러주세요.`;
     } else if (state.viewer && state.viewer.isHost) {
       lobbyHintEl.textContent = `참가자(사람) ${joinedHumans}/${targetHumans} · AI ${targetAi}명 — 방장은 관전이며 플레이어 수에 포함되지 않습니다.`;
     } else {

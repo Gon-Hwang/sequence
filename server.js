@@ -78,19 +78,6 @@ function findGameBySocketId(socketId) {
   return null;
 }
 
-function maybeAutoStartLobby(game) {
-  if (!game || game.status !== 'lobby') return false;
-  const humans = game.players.filter((p) => !p.isAI).length;
-  const targetHumans = game.targetHumanCount ?? game.maxPlayers;
-  const targetAi = game.numAI;
-  if (humans !== targetHumans) return false;
-  if (humans + targetAi !== game.maxPlayers) return false;
-  game.startGame();
-  emitState(game);
-  runAiTurns(game);
-  return true;
-}
-
 function chooseMove(game, playerIdx) {
   const player = game.players[playerIdx];
   if (!player) return null;
@@ -197,7 +184,7 @@ io.on('connection', (socket) => {
     game.targetHumanCount = h;
     games.set(code, game);
     socket.join(code);
-    if (!maybeAutoStartLobby(game)) emitState(game);
+    emitState(game);
   });
 
   socket.on('joinGame', ({ code, name }) => {
@@ -219,7 +206,7 @@ io.on('connection', (socket) => {
     const safeName = String(name || '').trim().slice(0, 20) || '플레이어';
     game.addPlayer(socket.id, safeName, false);
     socket.join(game.code);
-    if (!maybeAutoStartLobby(game)) emitState(game);
+    emitState(game);
   });
 
   socket.on('startGame', () => {
@@ -273,7 +260,7 @@ io.on('connection', (socket) => {
     }
     game.targetHumanCount = h;
     game.numAI = a;
-    if (!maybeAutoStartLobby(game)) emitState(game);
+    emitState(game);
   });
 
   socket.on('playCard', ({ cardIndex, row, col }) => {
