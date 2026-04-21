@@ -1,7 +1,6 @@
 const socket = io();
 
 const nameInput = document.getElementById('nameInput');
-const maxPlayersInput = document.getElementById('maxPlayersInput');
 const aiCountInput = document.getElementById('aiCountInput');
 const roomCodeInput = document.getElementById('roomCodeInput');
 const createBtn = document.getElementById('createBtn');
@@ -24,7 +23,6 @@ let selectedCardIndex = null;
 createBtn.onclick = () => {
   socket.emit('createGame', {
     name: nameInput.value,
-    maxPlayers: Number(maxPlayersInput.value),
     aiCount: Number(aiCountInput.value),
   });
 };

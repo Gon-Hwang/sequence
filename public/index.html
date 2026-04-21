@@ -13,18 +13,13 @@
       <section id="lobbyControls" class="card">
         <div class="grid">
           <input id="nameInput" maxlength="20" placeholder="닉네임" />
-          <select id="maxPlayersInput">
-            <option value="2">2명</option>
-            <option value="3">3명</option>
-            <option value="4" selected>4명</option>
-          </select>
           <select id="aiCountInput">
             <option value="0">AI 0명</option>
             <option value="1">AI 1명</option>
             <option value="2">AI 2명</option>
-            <option value="3">AI 3명</option>
-            <option value="4" selected>AI 4명</option>
+            <option value="3" selected>AI 3명</option>
           </select>
+          <div class="small">3인 게임 고정 (사람+AI 합계 3)</div>
         </div>
         <div class="row">
           <button id="createBtn">방 만들기</button>

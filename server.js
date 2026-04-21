@@ -159,9 +159,9 @@ function runAiTurns(game, delayMs = 600) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('createGame', ({ name, maxPlayers, aiCount }) => {
+  socket.on('createGame', ({ name, aiCount }) => {
     const safeName = String(name || '').trim().slice(0, 20) || '방장';
-    const safeMax = [2, 3, 4].includes(Number(maxPlayers)) ? Number(maxPlayers) : 4;
+    const safeMax = 3;
     const safeAi = Math.max(0, Math.min(Number(aiCount) || 0, safeMax));
 
     const code = createUniqueCode();
