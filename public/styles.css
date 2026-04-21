@@ -128,6 +128,32 @@ button:disabled {
   opacity: 0.35;
 }
 
+.cell.hint-locate-empty {
+  outline: 2px dashed #22d3ee;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.18);
+}
+
+.cell.hint-locate-occupied {
+  outline: 2px dashed #a5b4fc;
+  box-shadow: 0 0 0 2px rgba(165, 180, 252, 0.16);
+  opacity: 0.95;
+}
+
+.cell.hint-hover-wild {
+  outline: 2px dashed #34d399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.18);
+}
+
+.cell.hint-hover-wild-occupied {
+  outline: 1px dashed rgba(52, 211, 153, 0.55);
+  opacity: 0.55;
+}
+
+.cell.hint-hover-remove {
+  outline: 2px dashed #fb7185;
+  box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.18);
+}
+
 .chip {
   position: absolute;
   width: 14px;

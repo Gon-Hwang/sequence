@@ -20,6 +20,7 @@ const spectatorsEl = document.getElementById('spectators');
 let state = null;
 let myIndex = -1;
 let selectedCardIndex = null;
+let hoverCard = null;
 
 const ONE_EYE_JACKS = new Set(['JS', 'JH']);
 const TWO_EYE_JACKS = new Set(['JD', 'JC']);
@@ -71,6 +72,31 @@ function hintForCell(r, c, selectedCard) {
   }
 
   if (boardCard === selectedCard && owner === null) return 'play';
+  return null;
+}
+
+/** 보드에서 카드 위치 찾기(턴/빈칸과 무관). 손패 호버용 */
+function hoverLocateHintForCell(r, c, card) {
+  if (!state || state.status !== 'playing') return null;
+  if (myIndex < 0) return null;
+  if (!card) return null;
+
+  const boardCard = state.board[r][c];
+  const owner = state.chips[r][c];
+
+  if (isTwoEyeJack(card)) {
+    if (boardCard === 'FREE') return null;
+    if (owner === null) return 'wild-empty';
+    return 'wild-occupied';
+  }
+
+  if (isOneEyeJack(card)) {
+    if (owner === null || owner === myIndex) return null;
+    if (isCellInCompletedSequence(r, c)) return null;
+    return 'remove';
+  }
+
+  if (boardCard === card) return owner === null ? 'locate-empty' : 'locate-occupied';
   return null;
 }
 
@@ -177,6 +203,10 @@ function renderHand() {
     const btn = document.createElement('button');
     btn.textContent = card;
     if (selectedCardIndex === idx) btn.classList.add('selected');
+    btn.addEventListener('pointerenter', () => {
+      hoverCard = card;
+      if (state && state.status === 'playing') renderBoard();
+    });
     btn.onclick = () => {
       selectedCardIndex = idx;
       renderHand();
@@ -193,6 +223,11 @@ function renderHand() {
     socket.emit('discardDeadCard', { cardIndex: selectedCardIndex });
   };
   handEl.appendChild(discardBtn);
+
+  handEl.onmouseleave = () => {
+    hoverCard = null;
+    if (state && state.status === 'playing') renderBoard();
+  };
 }
 
 function renderBoard() {
@@ -223,7 +258,31 @@ function renderBoard() {
         cell.classList.add('hint-playable');
       } else if (hint === 'remove') {
         cell.classList.add('hint-removable');
-      } else if (selectedCard && state.status === 'playing' && isMyTurn()) {
+      }
+
+      const hov = hoverCard ? hoverLocateHintForCell(r, c, hoverCard) : null;
+      if (hov === 'locate-empty') cell.classList.add('hint-locate-empty');
+      else if (hov === 'locate-occupied') cell.classList.add('hint-locate-occupied');
+      else if (hov === 'wild-empty') cell.classList.add('hint-hover-wild');
+      else if (hov === 'wild-occupied') cell.classList.add('hint-hover-wild-occupied');
+      else if (hov === 'remove') cell.classList.add('hint-hover-remove');
+
+      const keepVisibleForHover =
+        hov === 'locate-empty' ||
+        hov === 'locate-occupied' ||
+        hov === 'wild-empty' ||
+        hov === 'wild-occupied' ||
+        hov === 'remove';
+
+      if (
+        selectedCard &&
+        state.status === 'playing' &&
+        isMyTurn() &&
+        !keepVisibleForHover &&
+        hint !== 'play' &&
+        hint !== 'wild' &&
+        hint !== 'remove'
+      ) {
         cell.classList.add('hint-dim');
       }
 
@@ -263,7 +322,10 @@ function renderState() {
     state.status === 'lobby' && targetHumans > 0 && joinedHumans < targetHumans
       ? `참가자 ${joinedHumans}/${targetHumans} — 인원이 맞아야 시작할 수 있습니다`
       : '';
-  if (state.status !== 'playing') selectedCardIndex = null;
+  if (state.status !== 'playing') {
+    selectedCardIndex = null;
+    hoverCard = null;
+  }
   renderPlayers();
   renderHand();
   renderBoard();

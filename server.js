@@ -278,10 +278,23 @@ io.on('connection', (socket) => {
 
   socket.on('playCard', ({ cardIndex, row, col }) => {
     const found = findGameBySocketId(socket.id);
-    if (!found) return;
-    const { game, idx } = found;
-    if (game.status !== 'playing') return;
-    if (game.currentPlayer !== idx) return;
+    if (!found) {
+      socket.emit('errorMsg', '방 정보를 찾을 수 없습니다. 페이지를 새로고침 후 다시 시도해 주세요');
+      return;
+    }
+    const { game, idx, role } = found;
+    if (role !== 'player') {
+      socket.emit('errorMsg', '관전자는 말을 둘 수 없습니다');
+      return;
+    }
+    if (game.status !== 'playing') {
+      socket.emit('errorMsg', '지금은 플레이 중이 아닙니다');
+      return;
+    }
+    if (game.currentPlayer !== idx) {
+      socket.emit('errorMsg', '지금은 당신의 턴이 아닙니다');
+      return;
+    }
     const result = game.playCard(idx, Number(cardIndex), Number(row), Number(col));
     if (!result.success) {
       socket.emit('errorMsg', result.error || '수를 둘 수 없습니다');
@@ -292,10 +305,23 @@ io.on('connection', (socket) => {
 
   socket.on('discardDeadCard', ({ cardIndex }) => {
     const found = findGameBySocketId(socket.id);
-    if (!found) return;
-    const { game, idx } = found;
-    if (game.status !== 'playing') return;
-    if (game.currentPlayer !== idx) return;
+    if (!found) {
+      socket.emit('errorMsg', '방 정보를 찾을 수 없습니다. 페이지를 새로고침 후 다시 시도해 주세요');
+      return;
+    }
+    const { game, idx, role } = found;
+    if (role !== 'player') {
+      socket.emit('errorMsg', '관전자는 카드를 버릴 수 없습니다');
+      return;
+    }
+    if (game.status !== 'playing') {
+      socket.emit('errorMsg', '지금은 플레이 중이 아닙니다');
+      return;
+    }
+    if (game.currentPlayer !== idx) {
+      socket.emit('errorMsg', '지금은 당신의 턴이 아닙니다');
+      return;
+    }
     const result = game.discardDeadCard(idx, Number(cardIndex));
     if (!result.success) {
       socket.emit('errorMsg', result.error || '버릴 수 없습니다');
