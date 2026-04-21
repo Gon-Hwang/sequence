@@ -7,6 +7,7 @@ const roomCodeInput = document.getElementById('roomCodeInput');
 const createBtn = document.getElementById('createBtn');
 const joinBtn = document.getElementById('joinBtn');
 const startBtn = document.getElementById('startBtn');
+const lobbyHintEl = document.getElementById('lobbyHint');
 
 const roomCodeEl = document.getElementById('roomCode');
 const statusEl = document.getElementById('status');
@@ -156,7 +157,21 @@ joinBtn.onclick = () => {
   });
 };
 
-startBtn.onclick = () => socket.emit('startGame');
+startBtn.onclick = () => {
+  if (startBtn.disabled) {
+    if (state && state.status === 'lobby' && state.viewer && state.viewer.isHost) {
+      const targetHumans = state.targetHumanCount ?? 3;
+      const joinedHumans = (state.players || []).filter((p) => !p.isAI).length;
+      if (targetHumans > 0 && joinedHumans < targetHumans) {
+        alert(
+          `참가자가 부족합니다. (현재 ${joinedHumans}/${targetHumans})\n방장은 플레이어에 포함되지 않습니다. 친구를 초대하거나 사람/AI 구성을 바꿔 주세요.`,
+        );
+      }
+    }
+    return;
+  }
+  socket.emit('startGame');
+};
 
 humanCountInput.onchange = () => {
   syncAiSelectToHuman();
@@ -339,6 +354,18 @@ function renderState() {
     state.status === 'lobby' && targetHumans > 0 && joinedHumans < targetHumans
       ? `참가자 ${joinedHumans}/${targetHumans} — 인원이 맞아야 시작할 수 있습니다`
       : '';
+  if (state.status === 'lobby') {
+    const targetAi = state.numAI ?? 0;
+    if (targetHumans === 0) {
+      lobbyHintEl.textContent = `전원 AI(${targetAi}명) 구성: 방 생성 후 자동으로 시작됩니다.`;
+    } else if (state.viewer && state.viewer.isHost) {
+      lobbyHintEl.textContent = `참가자(사람) ${joinedHumans}/${targetHumans} · AI ${targetAi}명 — 방장은 관전이며 플레이어 수에 포함되지 않습니다.`;
+    } else {
+      lobbyHintEl.textContent = `참가자(사람) ${joinedHumans}/${targetHumans} · AI ${targetAi}명`;
+    }
+  } else {
+    lobbyHintEl.textContent = '';
+  }
   if (state.status !== 'playing') {
     selectedCardIndex = null;
     hoverCard = null;
@@ -354,6 +381,7 @@ socket.on('state', (s) => {
   if (s.status === 'lobby') {
     humanCountInput.value = String(s.targetHumanCount ?? 3);
     aiCountInput.value = String(s.numAI ?? 0);
+    syncAiSelectToHuman();
   }
   renderState();
 });
