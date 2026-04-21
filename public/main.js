@@ -386,19 +386,21 @@ function renderBoard() {
       cell.className = 'cell' + (card === 'FREE' ? ' free' : '');
       cell.dataset.r = String(r);
       cell.dataset.c = String(c);
-      const label = document.createElement('span');
-      label.className = 'cell-label';
-      label.textContent = card;
-      cell.appendChild(label);
 
       const seqMeta = seqMap.get(cellKey(r, c));
       const owner = chips[r][c];
       if (owner !== null) {
+        cell.classList.add('has-chip');
         const chip = document.createElement('span');
         chip.className = 'chip';
         chip.style.background = state.players[owner]?.color || '#94a3b8';
         cell.appendChild(chip);
       }
+
+      const label = document.createElement('span');
+      label.className = 'cell-label';
+      label.textContent = card;
+      cell.appendChild(label);
 
       if (seqMeta) {
         const tone = state.players[seqMeta.owner]?.color || '#fbbf24';
