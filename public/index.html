@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sequence Online</title>
-    <link rel="stylesheet" href="/styles.css?v=20" />
+    <link rel="stylesheet" href="/styles.css?v=21" />
   </head>
   <body>
     <div id="resultBanner" class="result-banner" hidden>
@@ -33,16 +33,15 @@
             <option value="2" selected>AI 2명</option>
             <option value="3">AI 3명</option>
           </select>
-          <div class="small">인원 합 2~3명: 사람 + AI = 2 또는 3 (방장은 관전이라 사람 N은 ‘참가자’ 기준)</div>
           <details class="rule-details small">
-            <summary>시퀀스 규칙 (공식과 동일)</summary>
+            <summary>규칙 요약</summary>
             <p>
-              <strong>중복 사용 가능:</strong> 첫 번째 시퀀스(칩 5개)를 구성하는 칩 중 1개를 두 번째 시퀀스의
-              일부로 재사용할 수 있습니다.
+              같은 색 칩을 보드에서 가로·세로·대각으로 <strong>5칸 연속</strong>으로 놓으면 시퀀스 1개를
+              완성합니다. 내 턴에는 손패 카드와 보드 칸이 같을 때 그 칸에 칩을 둡니다.
             </p>
             <p>
-              <strong>9개 칩으로 2개 완성:</strong> 9개의 칩을 일렬로 놓으면, 앞쪽 5개(시퀀스 1)와 뒤쪽
-              5개(시퀀스 2)가 중간 칩 1개를 공유하며 2개의 시퀀스로 인정됩니다.
+              <strong>조커</strong>는 빈 칸에 칩을 두거나, 규칙에 맞으면 상대 칩을 치울 때 씁니다. 공식
+              규칙처럼 서로 다른 시퀀스가 <strong>칸 하나를 같이 쓰는 것</strong>도 가능합니다.
             </p>
           </details>
         </div>

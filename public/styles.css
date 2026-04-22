@@ -7,39 +7,51 @@ body {
   font-family: Arial, sans-serif;
   background: #0f172a;
   color: #e2e8f0;
+  line-height: 1.45;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 18px 16px 24px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
+}
+
+h1,
+h3 {
+  margin: 0 0 10px;
+  line-height: 1.2;
 }
 
 .card {
   background: #1e293b;
   border: 1px solid #334155;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.22);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .row {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .row-between {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .lobby-actions {
@@ -83,15 +95,23 @@ body {
 input,
 select,
 button {
-  padding: 8px;
+  min-height: 40px;
+  padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid #475569;
   background: #0b1220;
   color: #e2e8f0;
+  font-size: 14px;
 }
 
 button {
   cursor: pointer;
+  background: #132038;
+  transition: background-color 0.15s ease;
+}
+
+button:hover:enabled {
+  background: #1b2b49;
 }
 
 button:disabled {
@@ -133,6 +153,8 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(10, minmax(34px, 1fr));
   gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .cell {
@@ -336,6 +358,7 @@ button:disabled {
   font-size: 13px;
   display: grid;
   gap: 4px;
+  padding-right: 2px;
 }
 
 .small {
@@ -373,4 +396,124 @@ button:disabled {
   border-color: #a7f3d0;
   background: #064e3b;
   color: #ecfdf5;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 12px 10px 18px;
+    gap: 10px;
+  }
+
+  h1 {
+    font-size: 24px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 11px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .row {
+    gap: 8px;
+  }
+
+  .row > input,
+  .row > button,
+  .row > select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .lobby-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .lobby-actions > button,
+  .post-game-actions > button {
+    width: 100%;
+  }
+
+  .players {
+    gap: 8px;
+  }
+
+  .player {
+    padding: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .hand {
+    gap: 8px;
+  }
+
+  .hand button {
+    min-height: 42px;
+    padding: 10px 12px;
+    flex: 1 1 calc(25% - 8px);
+  }
+
+  .board {
+    grid-template-columns: repeat(10, 34px);
+    justify-content: start;
+    gap: 3px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .cell {
+    min-height: 36px;
+  }
+
+  .chip {
+    width: 24px;
+    height: 24px;
+  }
+
+  .cell.has-chip .cell-label {
+    width: 20px;
+    height: 20px;
+    font-size: 9px;
+  }
+
+  .cell.free.has-chip .cell-label {
+    font-size: 7px;
+  }
+
+  .log {
+    max-height: 140px;
+    font-size: 12px;
+  }
+
+  .small {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .result-banner {
+    padding: 8px 10px;
+  }
+
+  .result-banner__inner {
+    align-items: flex-start;
+  }
+
+  .result-banner__text {
+    font-size: 13px;
+  }
 }
