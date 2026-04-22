@@ -47,7 +47,7 @@
         </div>
         <div class="row">
           <button id="createBtn">방 만들기</button>
-          <input id="roomCodeInput" maxlength="6" placeholder="방 코드" />
+          <input id="roomCodeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="6자리 숫자" />
           <button id="joinBtn">방 참가</button>
         </div>
       </section>
@@ -91,6 +91,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/main.js?v=20"></script>
+    <script src="/main.js?v=22"></script>
   </body>
 </html>

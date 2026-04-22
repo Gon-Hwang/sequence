@@ -266,7 +266,7 @@ createBtn.onclick = () => {
 joinBtn.onclick = () => {
   socket.emit('joinGame', {
     name: nameInput.value,
-    code: roomCodeInput.value.trim().toUpperCase(),
+    code: roomCodeInput.value.replace(/\D/g, '').slice(0, 6),
   });
 };
 

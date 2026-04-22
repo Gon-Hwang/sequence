@@ -28,12 +28,15 @@ app.use(
 );
 
 function randomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += String(Math.floor(Math.random() * 10));
   }
   return code;
+}
+
+function normalizeRoomCode(input) {
+  return String(input || '').replace(/\D/g, '').slice(0, 6);
 }
 
 function createUniqueCode() {
@@ -224,7 +227,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinGame', ({ code, name }) => {
-    const game = games.get(String(code || '').toUpperCase());
+    const normalized = normalizeRoomCode(code);
+    if (normalized.length !== 6) {
+      socket.emit('errorMsg', '방 코드는 숫자 6자리를 입력해 주세요');
+      return;
+    }
+    const game = games.get(normalized);
     if (!game) {
       socket.emit('errorMsg', '존재하지 않는 방 코드입니다');
       return;
