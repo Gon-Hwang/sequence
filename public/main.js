@@ -36,6 +36,67 @@ let handHoverGlobalsBound = false;
 let lastResultNotifyKey = '';
 let resultBannerDismissedForKey = '';
 let deferredInstallPrompt = null;
+let chipAudioCtx = null;
+
+function playChipPlaceSound() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!chipAudioCtx) chipAudioCtx = new Ctx();
+    const ctx = chipAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+
+    const t0 = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.2, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+    master.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(300, t0);
+    osc.frequency.exponentialRampToValueAtTime(95, t0 + 0.065);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.45, t0);
+    osc.connect(og);
+    og.connect(master);
+
+    const dur = 0.055;
+    const nSamples = Math.max(1, Math.ceil(ctx.sampleRate * dur));
+    const buf = ctx.createBuffer(1, nSamples, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < nSamples; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / nSamples) * 0.9;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.28, t0);
+    noise.connect(ng);
+    ng.connect(master);
+
+    osc.start(t0);
+    osc.stop(t0 + 0.085);
+    noise.start(t0);
+    noise.stop(t0 + dur);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/** @param {unknown[][] | null | undefined} prev @param {unknown[][] | null | undefined} next */
+function detectNewChipPlaced(prev, next) {
+  if (!prev || !next || prev.length !== 10 || next.length !== 10) return false;
+  for (let r = 0; r < 10; r++) {
+    const pr = prev[r];
+    const nr = next[r];
+    if (!pr || !nr || pr.length !== 10 || nr.length !== 10) continue;
+    for (let c = 0; c < 10; c++) {
+      if (pr[c] == null && nr[c] != null) return true;
+    }
+  }
+  return false;
+}
 
 function clearHandHoverPreview() {
   hoverCard = null;
@@ -813,6 +874,17 @@ function renderState() {
 }
 
 socket.on('state', (s) => {
+  const prev = state;
+  if (
+    prev &&
+    prev.status === 'playing' &&
+    s.status === 'playing' &&
+    prev.chips &&
+    s.chips &&
+    detectNewChipPlaced(prev.chips, s.chips)
+  ) {
+    playChipPlaceSound();
+  }
   state = s;
   if (s.status === 'lobby') {
     humanCountInput.value = String(s.targetHumanCount ?? s.maxPlayers ?? 3);
