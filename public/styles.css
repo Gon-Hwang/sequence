@@ -367,6 +367,16 @@ button:disabled {
   color: #fcd34d;
 }
 
+.turn-spotlight--winner-celebrate {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: radial-gradient(120% 120% at 20% 0%, rgba(251, 191, 36, 0.14), transparent 50%),
+    linear-gradient(145deg, #0b1220 0%, #1a1520 42%, #0f172a 100%);
+}
+
+.turn-spotlight--winner-celebrate .turn-spotlight__label {
+  color: #fde68a;
+}
+
 .turn-spotlight--yours {
   border-color: color-mix(in srgb, var(--turn-accent, #22c55e) 45%, #334155);
   box-shadow:

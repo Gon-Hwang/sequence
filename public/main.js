@@ -390,6 +390,86 @@ function isMyTurn() {
   return state && state.status === 'playing' && state.currentPlayer === myIndex;
 }
 
+/** @returns {{ labelText: string, headline: string, subText: string, accent: string, variant: string }} */
+function buildFinishedSpotlightContent() {
+  const subHost = '방장은 다시 하기 또는 로비로 이동할 수 있습니다.';
+  const w = state.winner;
+
+  if (!w) {
+    return {
+      labelText: '게임 종료',
+      headline: '게임이 끝났습니다',
+      subText: subHost,
+      accent: '#94a3b8',
+      variant: 'turn-spotlight--finished',
+    };
+  }
+
+  if (w.type === 'draw') {
+    let headline = '무승부';
+    let subText = `모두 멋진 플레이였습니다. ${subHost}`;
+    if (Array.isArray(w.tiedTeams) && w.tiedTeams.length) {
+      headline = '팀 동점 무승부';
+      subText = `양 팀이 팽팽한 승부였습니다. ${subHost}`;
+    } else {
+      const names = (w.tied || [])
+        .map((idx) => {
+          const p = state.players[idx];
+          return p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : `#${idx}`;
+        })
+        .join(', ');
+      if (names) headline = `${names} — 동점으로 무승부`;
+    }
+    return {
+      labelText: '게임 종료',
+      headline,
+      subText,
+      accent: '#fcd34d',
+      variant: 'turn-spotlight--finished',
+    };
+  }
+
+  if (w.type === 'player') {
+    const p = state.players[w.playerIdx];
+    const name = p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : '승자';
+    const accent = p?.color ?? '#fbbf24';
+    return {
+      labelText: '게임 종료',
+      headline: `${name} 님, 우승을 축하합니다!`,
+      subText: `최종 승자에게 박수를 보냅니다. ${subHost}`,
+      accent,
+      variant: 'turn-spotlight--finished turn-spotlight--winner-celebrate',
+    };
+  }
+
+  if (w.type === 'team') {
+    const teamNum = Number(w.team) + 1;
+    const names = (w.players || [])
+      .map((idx) => {
+        const p = state.players[idx];
+        return p ? `${p.name}${p.isAI ? ' (AI)' : ''}` : `#${idx}`;
+      })
+      .join(', ');
+    const p0 = state.players[w.players?.[0]];
+    const accent = p0?.color ?? '#fbbf24';
+    return {
+      labelText: '게임 종료',
+      headline: `팀 ${teamNum} 승리! 축하합니다!`,
+      subText: names ? `${names} — 훌륭한 팀 플레이였습니다. ${subHost}` : subHost,
+      accent,
+      variant: 'turn-spotlight--finished turn-spotlight--winner-celebrate',
+    };
+  }
+
+  return {
+    labelText: '게임 종료',
+    headline: '게임이 끝났습니다',
+    subText: subHost,
+    accent: '#94a3b8',
+    variant: 'turn-spotlight--finished',
+  };
+}
+
 function renderTurnSpotlight() {
   if (!turnSpotlightEl) return;
   turnSpotlightEl.replaceChildren();
@@ -429,9 +509,11 @@ function renderTurnSpotlight() {
   }
 
   if (state.status === 'finished') {
-    addBlock('게임 종료', '수고하셨습니다', {
-      subText: '방장은 다시 하기 또는 로비로 이동할 수 있습니다.',
-      variant: 'turn-spotlight--finished',
+    const fin = buildFinishedSpotlightContent();
+    addBlock(fin.labelText, fin.headline, {
+      subText: fin.subText,
+      variant: fin.variant,
+      accent: fin.accent,
     });
     return;
   }
