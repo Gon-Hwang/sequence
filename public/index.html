@@ -3,8 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="description" content="멀티플레이어 시퀀스 보드게임 — 친구와 온라인으로 즐기세요." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Sequence" />
     <title>Sequence Online</title>
-    <link rel="stylesheet" href="/styles.css?v=21" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icons/pwa-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/pwa-icon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=22" />
   </head>
   <body>
     <div id="resultBanner" class="result-banner" hidden>
@@ -16,7 +24,12 @@
       </div>
     </div>
     <main class="container">
-      <h1>Sequence Online</h1>
+      <header class="app-header">
+        <h1>Sequence Online</h1>
+        <button id="pwaInstallBtn" type="button" class="pwa-install-btn" hidden>
+          앱 설치
+        </button>
+      </header>
 
       <section id="lobbyControls" class="card">
         <div class="grid">
@@ -73,10 +86,16 @@
         <p id="spectators" class="small"></p>
       </section>
 
-      <section class="card">
+      <section class="card hand-section">
         <h3>내 손패</h3>
-        <div id="hand" class="hand"></div>
-        <p id="selectedCardInfo" class="small"></p>
+        <div class="hand-layout">
+          <div class="hand-main">
+            <div id="hand" class="hand-cards"></div>
+            <div id="handToolbar" class="hand-toolbar"></div>
+            <p id="selectedCardInfo" class="small"></p>
+          </div>
+          <aside id="turnSpotlight" class="turn-spotlight" aria-live="polite"></aside>
+        </div>
       </section>
 
       <section class="card">
@@ -91,6 +110,6 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/main.js?v=22"></script>
+    <script src="/main.js?v=23"></script>
   </body>
 </html>

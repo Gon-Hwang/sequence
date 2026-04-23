@@ -1,0 +1,18 @@
+{
+  "name": "Sequence Online",
+  "short_name": "Sequence",
+  "description": "멀티플레이어 시퀀스 보드게임",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f766e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

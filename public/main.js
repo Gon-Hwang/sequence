@@ -17,6 +17,9 @@ const roomCodeEl = document.getElementById('roomCode');
 const statusEl = document.getElementById('status');
 const playersEl = document.getElementById('players');
 const handEl = document.getElementById('hand');
+const handToolbarEl = document.getElementById('handToolbar');
+const turnSpotlightEl = document.getElementById('turnSpotlight');
+const pwaInstallBtn = document.getElementById('pwaInstallBtn');
 const boardEl = document.getElementById('board');
 const logEl = document.getElementById('log');
 const selectedCardInfo = document.getElementById('selectedCardInfo');
@@ -32,6 +35,7 @@ let hoverCard = null;
 let handHoverGlobalsBound = false;
 let lastResultNotifyKey = '';
 let resultBannerDismissedForKey = '';
+let deferredInstallPrompt = null;
 
 function clearHandHoverPreview() {
   hoverCard = null;
@@ -63,6 +67,8 @@ function resetLocalClientState() {
   lobbyHintEl.textContent = '';
   playersEl.innerHTML = '';
   handEl.innerHTML = '';
+  if (handToolbarEl) handToolbarEl.innerHTML = '';
+  if (turnSpotlightEl) turnSpotlightEl.replaceChildren();
   boardEl.innerHTML = '';
   logEl.innerHTML = '';
   spectatorsEl.textContent = '';
@@ -85,6 +91,23 @@ backToLobbyBtn.onclick = () => {
 
 const ONE_EYE_JACKS = new Set(['JS', 'JH']);
 const TWO_EYE_JACKS = new Set(['JD', 'JC']);
+
+const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' };
+
+/** @returns {{ rank: string, suit: string, symbol: string, isRed: boolean } | null} */
+function parsePlayingCard(code) {
+  if (!code || typeof code !== 'string' || code === 'FREE') return null;
+  const suit = code.slice(-1);
+  if (!SUIT_SYMBOL[suit]) return null;
+  const rank = code.slice(0, -1);
+  if (!rank) return null;
+  return {
+    rank,
+    suit,
+    symbol: SUIT_SYMBOL[suit],
+    isRed: suit === 'H' || suit === 'D',
+  };
+}
 
 function isOneEyeJack(card) {
   return ONE_EYE_JACKS.has(card);
@@ -306,6 +329,135 @@ function isMyTurn() {
   return state && state.status === 'playing' && state.currentPlayer === myIndex;
 }
 
+function renderTurnSpotlight() {
+  if (!turnSpotlightEl) return;
+  turnSpotlightEl.replaceChildren();
+
+  if (!state) return;
+
+  const addBlock = (labelText, nameText, opts = {}) => {
+    const { subText = '', accent = null, variant = '' } = opts;
+    if (variant) turnSpotlightEl.className = `turn-spotlight ${variant}`;
+    else turnSpotlightEl.className = 'turn-spotlight';
+
+    const label = document.createElement('div');
+    label.className = 'turn-spotlight__label';
+    label.textContent = labelText;
+    turnSpotlightEl.appendChild(label);
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'turn-spotlight__name';
+    nameEl.textContent = nameText;
+    if (accent) nameEl.style.setProperty('--turn-accent', accent);
+    turnSpotlightEl.appendChild(nameEl);
+
+    if (subText) {
+      const sub = document.createElement('div');
+      sub.className = 'turn-spotlight__sub';
+      sub.textContent = subText;
+      turnSpotlightEl.appendChild(sub);
+    }
+  };
+
+  if (state.status === 'lobby') {
+    addBlock('턴', '시작 후 표시', {
+      subText: '방장이 게임 시작을 누르면 여기에 현재 차례가 나타납니다.',
+      variant: 'turn-spotlight--idle',
+    });
+    return;
+  }
+
+  if (state.status === 'finished') {
+    addBlock('게임 종료', '수고하셨습니다', {
+      subText: '방장은 다시 하기 또는 로비로 이동할 수 있습니다.',
+      variant: 'turn-spotlight--finished',
+    });
+    return;
+  }
+
+  if (state.status !== 'playing') return;
+
+  const cp = state.currentPlayer;
+  const p = state.players[cp];
+  if (!p) return;
+
+  const isMe = cp === myIndex && myIndex >= 0;
+  const aiNote = p.isAI ? ' · AI' : '';
+  let subText = '상대가 두는 중…';
+  if (myIndex < 0) subText = '관전 중 — 지금 말을 둘 차례인 플레이어입니다.';
+  else if (isMe) subText = '당신의 차례입니다 — 카드를 고르고 보드를 누르세요.';
+  addBlock('현재 턴', `${p.name}${aiNote}`, {
+    accent: p.color || '#22c55e',
+    subText,
+    variant: isMe ? 'turn-spotlight--yours' : 'turn-spotlight--theirs',
+  });
+}
+
+function createPlayingCardButton(card, idx) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'playing-card';
+  btn.dataset.cardIndex = String(idx);
+
+  const parsed = parsePlayingCard(card);
+  if (parsed) {
+    btn.classList.add(parsed.isRed ? 'playing-card--red' : 'playing-card--black');
+  }
+  if (isOneEyeJack(card)) btn.classList.add('playing-card--jack', 'playing-card--one-eye');
+  if (isTwoEyeJack(card)) btn.classList.add('playing-card--jack', 'playing-card--two-eye');
+
+  const inner = document.createElement('span');
+  inner.className = 'playing-card__face';
+
+  const corner = (extra) => {
+    const wrap = document.createElement('span');
+    wrap.className = `playing-card__corner ${extra}`;
+    const r = document.createElement('span');
+    r.className = 'playing-card__rank';
+    r.textContent = parsed ? parsed.rank : card;
+    const s = document.createElement('span');
+    s.className = 'playing-card__suit';
+    s.textContent = parsed ? parsed.symbol : '';
+    wrap.append(r, s);
+    return wrap;
+  };
+
+  if (parsed) {
+    inner.appendChild(corner('playing-card__corner--tl'));
+    const mid = document.createElement('span');
+    mid.className = 'playing-card__center';
+    mid.textContent = parsed.symbol;
+    inner.appendChild(mid);
+    inner.appendChild(corner('playing-card__corner--br'));
+  } else {
+    const fallback = document.createElement('span');
+    fallback.className = 'playing-card__fallback';
+    fallback.textContent = card;
+    inner.appendChild(fallback);
+  }
+
+  btn.appendChild(inner);
+
+  if (selectedCardIndex === idx) btn.classList.add('selected');
+
+  btn.addEventListener('pointerenter', () => {
+    hoverCard = card;
+    if (state && state.status === 'playing') renderBoard();
+  });
+  btn.addEventListener('pointerdown', () => {
+    hoverCard = card;
+    if (state && state.status === 'playing') renderBoard();
+  });
+  btn.addEventListener('click', () => {
+    selectedCardIndex = idx;
+    renderHand();
+    selectedCardInfo.textContent =
+      `선택: ${card} — 보드에서 위치가 강조됩니다. 실제 두기는 내 턴에만 가능합니다. 데드카드는 아래 버튼으로 버립니다.`;
+  });
+
+  return btn;
+}
+
 function renderPlayers() {
   playersEl.innerHTML = '';
   const neededSeq = Number(state.seqsToWin || 1);
@@ -344,37 +496,23 @@ function renderPlayers() {
 
 function renderHand() {
   handEl.innerHTML = '';
+  if (handToolbarEl) handToolbarEl.innerHTML = '';
   bindHandHoverGlobalsOnce();
   const me = state.players[myIndex];
   const cards = (me && me.hand) || [];
   cards.forEach((card, idx) => {
-    const btn = document.createElement('button');
-    btn.textContent = card;
-    if (selectedCardIndex === idx) btn.classList.add('selected');
-    btn.addEventListener('pointerenter', () => {
-      hoverCard = card;
-      if (state && state.status === 'playing') renderBoard();
-    });
-    btn.addEventListener('pointerdown', () => {
-      hoverCard = card;
-      if (state && state.status === 'playing') renderBoard();
-    });
-    btn.onclick = () => {
-      selectedCardIndex = idx;
-      renderHand();
-      selectedCardInfo.textContent =
-        `선택 카드: ${card} / 보드에서 해당 위치가 강조됩니다 (실제 두기는 내 턴에만 가능, 데드카드는 아래 버튼)`;
-    };
-    handEl.appendChild(btn);
+    handEl.appendChild(createPlayingCardButton(card, idx));
   });
 
   const discardBtn = document.createElement('button');
+  discardBtn.type = 'button';
+  discardBtn.className = 'hand-discard-btn';
   discardBtn.textContent = '선택 카드 데드카드 버리기';
   discardBtn.disabled = selectedCardIndex === null || !isMyTurn();
-  discardBtn.onclick = () => {
+  discardBtn.addEventListener('click', () => {
     socket.emit('discardDeadCard', { cardIndex: selectedCardIndex });
-  };
-  handEl.appendChild(discardBtn);
+  });
+  if (handToolbarEl) handToolbarEl.appendChild(discardBtn);
 
   handEl.onmouseleave = () => {
     clearHandHoverPreview();
@@ -654,6 +792,7 @@ function renderState() {
     hoverCard = null;
   }
   renderPlayers();
+  renderTurnSpotlight();
   renderHand();
   renderBoard();
   renderLog();
@@ -689,3 +828,64 @@ socket.on('errorMsg', (msg) => {
 socket.on('leftRoom', () => {
   resetLocalClientState();
 });
+
+function setupPwaUi() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
+  if (!pwaInstallBtn) return;
+
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    /** @type {Navigator & { standalone?: boolean }} */ (window.navigator).standalone === true;
+  if (isStandalone) {
+    pwaInstallBtn.hidden = true;
+    return;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    pwaInstallBtn.hidden = false;
+    pwaInstallBtn.textContent = '앱 설치';
+    pwaInstallBtn.removeAttribute('title');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    pwaInstallBtn.hidden = true;
+  });
+
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    pwaInstallBtn.hidden = false;
+    pwaInstallBtn.textContent = '홈 화면에 추가';
+    pwaInstallBtn.title = 'Safari 공유 버튼 → 홈 화면에 추가';
+  }
+
+  pwaInstallBtn.addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      pwaInstallBtn.hidden = true;
+      return;
+    }
+    if (isIOS) {
+      alert(
+        'Safari 하단의 공유(□↑)를 누른 뒤 「홈 화면에 추가」를 선택하면 앱처럼 설치할 수 있습니다.',
+      );
+      return;
+    }
+    alert(
+      '브라우저 메뉴(Chrome ⋮ 등)에서 이 사이트 설치·앱 설치 항목을 찾거나, 주소창 오른쪽의 설치 아이콘을 눌러 주세요.',
+    );
+  });
+}
+
+setupPwaUi();
