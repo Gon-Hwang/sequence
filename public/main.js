@@ -51,66 +51,71 @@ function playChipPlaceSound() {
 
     const t0 = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.2, t0);
-    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+    master.gain.setValueAtTime(0.24, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
     master.connect(ctx.destination);
 
-    // 딱딱한 칩 접촉음을 위해 저역 충격 + 고역 클릭 + 짧은 잔향 노이즈를 합성
+    // 2개 질감을 겹쳐 "척!" 느낌을 만듦:
+    // 1) 저역 바디(무게감) 2) 고역 스냅(타격감)
     const body = ctx.createOscillator();
     body.type = 'triangle';
-    body.frequency.setValueAtTime(430, t0);
-    body.frequency.exponentialRampToValueAtTime(170, t0 + 0.05);
+    body.frequency.setValueAtTime(520, t0);
+    body.frequency.exponentialRampToValueAtTime(155, t0 + 0.07);
+    const bodyTone = ctx.createBiquadFilter();
+    bodyTone.type = 'lowpass';
+    bodyTone.frequency.setValueAtTime(1200, t0);
     const bodyGain = ctx.createGain();
-    bodyGain.gain.setValueAtTime(0.5, t0);
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
-    body.connect(bodyGain);
+    bodyGain.gain.setValueAtTime(0.58, t0);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+    body.connect(bodyTone);
+    bodyTone.connect(bodyGain);
     bodyGain.connect(master);
 
-    const click = ctx.createOscillator();
-    click.type = 'square';
-    click.frequency.setValueAtTime(2200, t0);
-    click.frequency.exponentialRampToValueAtTime(800, t0 + 0.02);
-    const clickBp = ctx.createBiquadFilter();
-    clickBp.type = 'bandpass';
-    clickBp.frequency.setValueAtTime(1900, t0);
-    clickBp.Q.setValueAtTime(1.1, t0);
-    const clickGain = ctx.createGain();
-    clickGain.gain.setValueAtTime(0.11, t0);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
-    click.connect(clickBp);
-    clickBp.connect(clickGain);
-    clickGain.connect(master);
+    const snap = ctx.createOscillator();
+    snap.type = 'square';
+    snap.frequency.setValueAtTime(2500, t0 + 0.005);
+    snap.frequency.exponentialRampToValueAtTime(980, t0 + 0.028);
+    const snapBp = ctx.createBiquadFilter();
+    snapBp.type = 'bandpass';
+    snapBp.frequency.setValueAtTime(2100, t0);
+    snapBp.Q.setValueAtTime(1.3, t0);
+    const snapGain = ctx.createGain();
+    snapGain.gain.setValueAtTime(0.12, t0 + 0.005);
+    snapGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.055);
+    snap.connect(snapBp);
+    snapBp.connect(snapGain);
+    snapGain.connect(master);
 
-    const dur = 0.06;
+    const dur = 0.07;
     const nSamples = Math.max(1, Math.ceil(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, nSamples, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < nSamples; i++) {
       const decay = 1 - i / nSamples;
-      data[i] = (Math.random() * 2 - 1) * decay * decay * 0.42;
+      data[i] = (Math.random() * 2 - 1) * decay * decay * 0.38;
     }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buf;
+    const snapNoise = ctx.createBufferSource();
+    snapNoise.buffer = buf;
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.setValueAtTime(900, t0);
+    hp.frequency.setValueAtTime(1100, t0);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(4200, t0);
+    lp.frequency.setValueAtTime(5000, t0);
     const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.08, t0);
-    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07);
-    noise.connect(hp);
+    ng.gain.setValueAtTime(0.075, t0);
+    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.075);
+    snapNoise.connect(hp);
     hp.connect(lp);
     lp.connect(ng);
     ng.connect(master);
 
     body.start(t0);
-    body.stop(t0 + 0.13);
-    click.start(t0);
-    click.stop(t0 + 0.06);
-    noise.start(t0);
-    noise.stop(t0 + dur);
+    body.stop(t0 + 0.16);
+    snap.start(t0 + 0.005);
+    snap.stop(t0 + 0.07);
+    snapNoise.start(t0);
+    snapNoise.stop(t0 + dur);
   } catch (_) {
     /* ignore */
   }
@@ -125,66 +130,87 @@ function playVictoryFanfare() {
     if (ctx.state === 'suspended') void ctx.resume();
 
     const t0 = ctx.currentTime;
+    const totalDur = 3.0;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.34, t0);
+    master.gain.setValueAtTime(0.27, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + totalDur);
     master.connect(ctx.destination);
 
-    const chord = [523.25, 659.25, 783.99];
-    chord.forEach((f) => {
+    const introChord = [523.25, 659.25, 783.99];
+    introChord.forEach((f) => {
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(f, t0);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.09, t0 + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.72);
+      g.gain.linearRampToValueAtTime(0.08, t0 + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.95);
       osc.connect(g);
       g.connect(master);
       osc.start(t0);
-      osc.stop(t0 + 0.78);
+      osc.stop(t0 + 1.0);
     });
 
-    const leadFreqs = [783.99, 987.77, 1174.66, 1318.51, 1567.98];
-    const step = 0.11;
+    const leadFreqs = [
+      783.99, 987.77, 1174.66, 1318.51, 1567.98, 1318.51, 1174.66, 1567.98, 1760, 1567.98,
+    ];
+    const step = 0.22;
     leadFreqs.forEach((f, i) => {
-      const t = t0 + i * step;
+      const t = t0 + 0.38 + i * step;
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(f, t);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.19, t + 0.018);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+      g.gain.linearRampToValueAtTime(0.145, t + 0.024);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.34);
       osc.connect(g);
       g.connect(master);
       osc.start(t);
-      osc.stop(t + 0.3);
+      osc.stop(t + 0.38);
     });
 
     const bass = ctx.createOscillator();
     bass.type = 'sine';
     bass.frequency.setValueAtTime(130.81, t0);
-    bass.frequency.exponentialRampToValueAtTime(196, t0 + 0.48);
+    bass.frequency.exponentialRampToValueAtTime(196, t0 + 0.8);
+    bass.frequency.exponentialRampToValueAtTime(261.63, t0 + 2.5);
     const bassGain = ctx.createGain();
-    bassGain.gain.setValueAtTime(0.12, t0);
-    bassGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.62);
+    bassGain.gain.setValueAtTime(0.08, t0);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, t0 + 2.8);
     bass.connect(bassGain);
     bassGain.connect(master);
     bass.start(t0);
-    bass.stop(t0 + 0.68);
+    bass.stop(t0 + 2.85);
+
+    const finalChord = [1046.5, 1318.51, 1567.98];
+    finalChord.forEach((f) => {
+      const st = t0 + 2.2;
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, st);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, st);
+      g.gain.linearRampToValueAtTime(0.09, st + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.76);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(st);
+      osc.stop(st + 0.82);
+    });
 
     // 마지막 강조 히트
     const hit = ctx.createOscillator();
     hit.type = 'square';
-    hit.frequency.setValueAtTime(1567.98, t0 + 0.5);
+    hit.frequency.setValueAtTime(1567.98, t0 + 2.45);
     const hitGain = ctx.createGain();
-    hitGain.gain.setValueAtTime(0, t0 + 0.5);
-    hitGain.gain.linearRampToValueAtTime(0.2, t0 + 0.515);
-    hitGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.74);
+    hitGain.gain.setValueAtTime(0, t0 + 2.45);
+    hitGain.gain.linearRampToValueAtTime(0.15, t0 + 2.47);
+    hitGain.gain.exponentialRampToValueAtTime(0.001, t0 + 2.92);
     hit.connect(hitGain);
     hitGain.connect(master);
-    hit.start(t0 + 0.5);
-    hit.stop(t0 + 0.78);
+    hit.start(t0 + 2.45);
+    hit.stop(t0 + 2.95);
 
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.setValueAtTime(-18, t0);
