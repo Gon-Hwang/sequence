@@ -51,58 +51,64 @@ function playChipPlaceSound() {
 
     const t0 = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.16, t0);
-    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
+    master.gain.setValueAtTime(0.2, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
     master.connect(ctx.destination);
 
-    const thud = ctx.createOscillator();
-    thud.type = 'sine';
-    thud.frequency.setValueAtTime(680, t0);
-    thud.frequency.exponentialRampToValueAtTime(220, t0 + 0.028);
-    const tg = ctx.createGain();
-    tg.gain.setValueAtTime(0.55, t0);
-    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07);
-    thud.connect(tg);
-    tg.connect(master);
+    // 딱딱한 칩 접촉음을 위해 저역 충격 + 고역 클릭 + 짧은 잔향 노이즈를 합성
+    const body = ctx.createOscillator();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(430, t0);
+    body.frequency.exponentialRampToValueAtTime(170, t0 + 0.05);
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.setValueAtTime(0.5, t0);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
+    body.connect(bodyGain);
+    bodyGain.connect(master);
 
-    const knock = ctx.createOscillator();
-    knock.type = 'square';
-    knock.frequency.setValueAtTime(1240, t0);
-    knock.frequency.exponentialRampToValueAtTime(410, t0 + 0.018);
-    const low = ctx.createBiquadFilter();
-    low.type = 'lowpass';
-    low.frequency.setValueAtTime(2800, t0);
-    low.Q.setValueAtTime(0.7, t0);
-    const kg = ctx.createGain();
-    kg.gain.setValueAtTime(0.08, t0);
-    kg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
-    knock.connect(low);
-    low.connect(kg);
-    kg.connect(master);
+    const click = ctx.createOscillator();
+    click.type = 'square';
+    click.frequency.setValueAtTime(2200, t0);
+    click.frequency.exponentialRampToValueAtTime(800, t0 + 0.02);
+    const clickBp = ctx.createBiquadFilter();
+    clickBp.type = 'bandpass';
+    clickBp.frequency.setValueAtTime(1900, t0);
+    clickBp.Q.setValueAtTime(1.1, t0);
+    const clickGain = ctx.createGain();
+    clickGain.gain.setValueAtTime(0.11, t0);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
+    click.connect(clickBp);
+    clickBp.connect(clickGain);
+    clickGain.connect(master);
 
-    const dur = 0.038;
+    const dur = 0.06;
     const nSamples = Math.max(1, Math.ceil(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, nSamples, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < nSamples; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / nSamples) * 0.55;
+      const decay = 1 - i / nSamples;
+      data[i] = (Math.random() * 2 - 1) * decay * decay * 0.42;
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buf;
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.setValueAtTime(1800, t0);
+    hp.frequency.setValueAtTime(900, t0);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(4200, t0);
     const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.06, t0);
-    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.032);
+    ng.gain.setValueAtTime(0.08, t0);
+    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07);
     noise.connect(hp);
-    hp.connect(ng);
+    hp.connect(lp);
+    lp.connect(ng);
     ng.connect(master);
 
-    thud.start(t0);
-    thud.stop(t0 + 0.09);
-    knock.start(t0);
-    knock.stop(t0 + 0.06);
+    body.start(t0);
+    body.stop(t0 + 0.13);
+    click.start(t0);
+    click.stop(t0 + 0.06);
     noise.start(t0);
     noise.stop(t0 + dur);
   } catch (_) {
@@ -120,25 +126,75 @@ function playVictoryFanfare() {
 
     const t0 = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.22, t0);
+    master.gain.setValueAtTime(0.34, t0);
     master.connect(ctx.destination);
 
-    const freqs = [523.25, 659.25, 783.99, 987.77];
-    const step = 0.1;
-    freqs.forEach((f, i) => {
+    const chord = [523.25, 659.25, 783.99];
+    chord.forEach((f) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, t0);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.09, t0 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.72);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(t0);
+      osc.stop(t0 + 0.78);
+    });
+
+    const leadFreqs = [783.99, 987.77, 1174.66, 1318.51, 1567.98];
+    const step = 0.11;
+    leadFreqs.forEach((f, i) => {
       const t = t0 + i * step;
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(f, t);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.14, t + 0.025);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+      g.gain.linearRampToValueAtTime(0.19, t + 0.018);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
       osc.connect(g);
       g.connect(master);
       osc.start(t);
-      osc.stop(t + 0.42);
+      osc.stop(t + 0.3);
     });
+
+    const bass = ctx.createOscillator();
+    bass.type = 'sine';
+    bass.frequency.setValueAtTime(130.81, t0);
+    bass.frequency.exponentialRampToValueAtTime(196, t0 + 0.48);
+    const bassGain = ctx.createGain();
+    bassGain.gain.setValueAtTime(0.12, t0);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.62);
+    bass.connect(bassGain);
+    bassGain.connect(master);
+    bass.start(t0);
+    bass.stop(t0 + 0.68);
+
+    // 마지막 강조 히트
+    const hit = ctx.createOscillator();
+    hit.type = 'square';
+    hit.frequency.setValueAtTime(1567.98, t0 + 0.5);
+    const hitGain = ctx.createGain();
+    hitGain.gain.setValueAtTime(0, t0 + 0.5);
+    hitGain.gain.linearRampToValueAtTime(0.2, t0 + 0.515);
+    hitGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.74);
+    hit.connect(hitGain);
+    hitGain.connect(master);
+    hit.start(t0 + 0.5);
+    hit.stop(t0 + 0.78);
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-18, t0);
+    limiter.knee.setValueAtTime(12, t0);
+    limiter.ratio.setValueAtTime(4, t0);
+    limiter.attack.setValueAtTime(0.003, t0);
+    limiter.release.setValueAtTime(0.15, t0);
+    master.disconnect();
+    master.connect(limiter);
+    limiter.connect(ctx.destination);
   } catch (_) {
     /* ignore */
   }
