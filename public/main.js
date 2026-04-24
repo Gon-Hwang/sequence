@@ -40,6 +40,7 @@ let deferredInstallPrompt = null;
 let chipAudioCtx = null;
 let fanfareAudioCtx = null;
 let fanfarePlayedForKey = '';
+let firstSequenceFanfarePlayedForKey = '';
 
 function playChipPlaceSound() {
   try {
@@ -226,6 +227,71 @@ function playVictoryFanfare() {
   }
 }
 
+function playFirstSequenceFanfare() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!fanfareAudioCtx) fanfareAudioCtx = new Ctx();
+    const ctx = fanfareAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+
+    const t0 = ctx.currentTime;
+    const totalDur = 1.0;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.24, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + totalDur);
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-18, t0);
+    limiter.knee.setValueAtTime(10, t0);
+    limiter.ratio.setValueAtTime(3.2, t0);
+    limiter.attack.setValueAtTime(0.003, t0);
+    limiter.release.setValueAtTime(0.15, t0);
+    master.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    const chord = [659.25, 783.99, 987.77];
+    chord.forEach((f) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t0);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.09, t0 + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.72);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(t0);
+      osc.stop(t0 + 0.78);
+    });
+
+    const accent = ctx.createOscillator();
+    accent.type = 'square';
+    accent.frequency.setValueAtTime(1174.66, t0 + 0.28);
+    const accentGain = ctx.createGain();
+    accentGain.gain.setValueAtTime(0, t0 + 0.28);
+    accentGain.gain.linearRampToValueAtTime(0.1, t0 + 0.3);
+    accentGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.88);
+    accent.connect(accentGain);
+    accentGain.connect(master);
+    accent.start(t0 + 0.28);
+    accent.stop(t0 + 0.9);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function isTwoPlayerMatch(s) {
+  if (!s) return false;
+  const total =
+    Number.isFinite(Number(s.maxPlayers)) && Number(s.maxPlayers) > 0
+      ? Number(s.maxPlayers)
+      : Array.isArray(s.players)
+        ? s.players.length
+        : 0;
+  return total === 2;
+}
+
 /** @param {unknown[][] | null | undefined} prev @param {unknown[][] | null | undefined} next */
 function detectNewChipPlaced(prev, next) {
   if (!prev || !next || prev.length !== 10 || next.length !== 10) return false;
@@ -265,6 +331,7 @@ function resetLocalClientState() {
   lastResultNotifyKey = '';
   resultBannerDismissedForKey = '';
   fanfarePlayedForKey = '';
+  firstSequenceFanfarePlayedForKey = '';
   resultBannerEl.hidden = true;
   roomCodeEl.textContent = '-';
   statusEl.textContent = '대기';
@@ -971,7 +1038,7 @@ function maybeShowGameResultBanner() {
     body = `게임 종료! 우승: ${winnerLabel}`;
   }
 
-  if (didLocalViewerWin(w) && fanfarePlayedForKey !== key) {
+  if (w.type !== 'draw' && fanfarePlayedForKey !== key) {
     fanfarePlayedForKey = key;
     playVictoryFanfare();
   }
@@ -1068,6 +1135,9 @@ function renderState() {
 
 socket.on('state', (s) => {
   const prev = state;
+  const prevSeqCount = Array.isArray(prev?.sequences) ? prev.sequences.length : 0;
+  const nextSeqCount = Array.isArray(s?.sequences) ? s.sequences.length : 0;
+  const firstSequenceKey = `${s?.code || 'room'}|first-seq`;
   if (
     prev &&
     prev.status === 'playing' &&
@@ -1077,6 +1147,21 @@ socket.on('state', (s) => {
     detectNewChipPlaced(prev.chips, s.chips)
   ) {
     playChipPlaceSound();
+  }
+  if (
+    prev &&
+    prev.status === 'playing' &&
+    (s.status === 'playing' || s.status === 'finished') &&
+    isTwoPlayerMatch(s) &&
+    prevSeqCount === 0 &&
+    nextSeqCount >= 1 &&
+    firstSequenceFanfarePlayedForKey !== firstSequenceKey
+  ) {
+    firstSequenceFanfarePlayedForKey = firstSequenceKey;
+    playFirstSequenceFanfare();
+  }
+  if (s.status === 'lobby') {
+    firstSequenceFanfarePlayedForKey = '';
   }
   state = s;
   if (s.status === 'lobby') {
