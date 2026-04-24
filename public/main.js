@@ -27,6 +27,7 @@ const spectatorsEl = document.getElementById('spectators');
 const resultBannerEl = document.getElementById('resultBanner');
 const resultBannerTextEl = document.getElementById('resultBannerText');
 const resultBannerCloseEl = document.getElementById('resultBannerClose');
+const handSectionEl = document.getElementById('handSection');
 
 let state = null;
 let myIndex = -1;
@@ -37,6 +38,8 @@ let lastResultNotifyKey = '';
 let resultBannerDismissedForKey = '';
 let deferredInstallPrompt = null;
 let chipAudioCtx = null;
+let fanfareAudioCtx = null;
+let fanfarePlayedForKey = '';
 
 function playChipPlaceSound() {
   try {
@@ -48,37 +51,94 @@ function playChipPlaceSound() {
 
     const t0 = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.2, t0);
-    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+    master.gain.setValueAtTime(0.16, t0);
+    master.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
     master.connect(ctx.destination);
 
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(300, t0);
-    osc.frequency.exponentialRampToValueAtTime(95, t0 + 0.065);
-    const og = ctx.createGain();
-    og.gain.setValueAtTime(0.45, t0);
-    osc.connect(og);
-    og.connect(master);
+    const thud = ctx.createOscillator();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(680, t0);
+    thud.frequency.exponentialRampToValueAtTime(220, t0 + 0.028);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.55, t0);
+    tg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07);
+    thud.connect(tg);
+    tg.connect(master);
 
-    const dur = 0.055;
+    const knock = ctx.createOscillator();
+    knock.type = 'square';
+    knock.frequency.setValueAtTime(1240, t0);
+    knock.frequency.exponentialRampToValueAtTime(410, t0 + 0.018);
+    const low = ctx.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.setValueAtTime(2800, t0);
+    low.Q.setValueAtTime(0.7, t0);
+    const kg = ctx.createGain();
+    kg.gain.setValueAtTime(0.08, t0);
+    kg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
+    knock.connect(low);
+    low.connect(kg);
+    kg.connect(master);
+
+    const dur = 0.038;
     const nSamples = Math.max(1, Math.ceil(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, nSamples, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < nSamples; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / nSamples) * 0.9;
+      data[i] = (Math.random() * 2 - 1) * (1 - i / nSamples) * 0.55;
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.setValueAtTime(1800, t0);
     const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.28, t0);
-    noise.connect(ng);
+    ng.gain.setValueAtTime(0.06, t0);
+    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.032);
+    noise.connect(hp);
+    hp.connect(ng);
     ng.connect(master);
 
-    osc.start(t0);
-    osc.stop(t0 + 0.085);
+    thud.start(t0);
+    thud.stop(t0 + 0.09);
+    knock.start(t0);
+    knock.stop(t0 + 0.06);
     noise.start(t0);
     noise.stop(t0 + dur);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function playVictoryFanfare() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!fanfareAudioCtx) fanfareAudioCtx = new Ctx();
+    const ctx = fanfareAudioCtx;
+    if (ctx.state === 'suspended') void ctx.resume();
+
+    const t0 = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.22, t0);
+    master.connect(ctx.destination);
+
+    const freqs = [523.25, 659.25, 783.99, 987.77];
+    const step = 0.1;
+    freqs.forEach((f, i) => {
+      const t = t0 + i * step;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.14, t + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(t);
+      osc.stop(t + 0.42);
+    });
   } catch (_) {
     /* ignore */
   }
@@ -122,6 +182,7 @@ function resetLocalClientState() {
   hoverCard = null;
   lastResultNotifyKey = '';
   resultBannerDismissedForKey = '';
+  fanfarePlayedForKey = '';
   resultBannerEl.hidden = true;
   roomCodeEl.textContent = '-';
   statusEl.textContent = '대기';
@@ -182,50 +243,6 @@ function cellKey(r, c) {
   return `${r},${c}`;
 }
 
-function gcd(a, b) {
-  let x = Math.abs(a);
-  let y = Math.abs(b);
-  while (y) {
-    const t = y;
-    y = x % y;
-    x = t;
-  }
-  return x || 1;
-}
-
-function normalizeDelta(dr, dc) {
-  if (dr === 0 && dc === 0) return { dr: 0, dc: 1 };
-  const g = gcd(dr, dc);
-  return { dr: dr / g, dc: dc / g };
-}
-
-function inferLineDirection(cells) {
-  const pts = [...cells].sort((a, b) => (a.r - b.r) || (a.c - b.c));
-  let p0 = pts[0];
-  let p1 = null;
-  for (let i = 1; i < pts.length; i++) {
-    if (pts[i].r !== p0.r || pts[i].c !== p0.c) {
-      p1 = pts[i];
-      break;
-    }
-  }
-  if (!p1) return { dr: 0, dc: 1 };
-  return normalizeDelta(p1.r - p0.r, p1.c - p0.c);
-}
-
-function orderCellsAlongLine(cells, dr, dc) {
-  const score = (p) => p.r * dr + p.c * dc;
-  return [...cells].sort((a, b) => score(a) - score(b));
-}
-
-function axisFromDelta(dr, dc) {
-  if (dr === 0) return 'h';
-  if (dc === 0) return 'v';
-  if (dr === 1 && dc === 1) return 'd1';
-  if (dr === 1 && dc === -1) return 'd2';
-  return 'h';
-}
-
 function buildSequenceHighlightMap(st) {
   const map = new Map();
   if (!st || !Array.isArray(st.sequences)) return map;
@@ -237,22 +254,9 @@ function buildSequenceHighlightMap(st) {
       seqId += 1;
       continue;
     }
-
-    const cells = raw.map((cell) => ({ r: cell.r, c: cell.c }));
-    const { dr, dc } = inferLineDirection(cells);
-    const ordered = orderCellsAlongLine(cells, dr, dc);
-    const axis = axisFromDelta(dr, dc);
-    const len = ordered.length;
-
-    ordered.forEach((p, idx) => {
-      map.set(cellKey(p.r, p.c), {
-        owner: seq.owner,
-        axis,
-        idx,
-        len,
-        seqId,
-      });
-    });
+    for (const cell of raw) {
+      map.set(cellKey(cell.r, cell.c), { owner: seq.owner, seqId });
+    }
     seqId += 1;
   }
 
@@ -541,6 +545,10 @@ function createPlayingCardButton(card, idx) {
   btn.type = 'button';
   btn.className = 'playing-card';
   btn.dataset.cardIndex = String(idx);
+  if (state && state.status !== 'playing') {
+    btn.disabled = true;
+    btn.classList.add('playing-card--inactive');
+  }
 
   const parsed = parsePlayingCard(card);
   if (parsed) {
@@ -592,6 +600,7 @@ function createPlayingCardButton(card, idx) {
     if (state && state.status === 'playing') renderBoard();
   });
   btn.addEventListener('click', () => {
+    if (state && state.status !== 'playing') return;
     selectedCardIndex = idx;
     renderHand();
     selectedCardInfo.textContent =
@@ -647,15 +656,19 @@ function renderHand() {
     handEl.appendChild(createPlayingCardButton(card, idx));
   });
 
-  const discardBtn = document.createElement('button');
-  discardBtn.type = 'button';
-  discardBtn.className = 'hand-discard-btn';
-  discardBtn.textContent = '선택 카드 데드카드 버리기';
-  discardBtn.disabled = selectedCardIndex === null || !isMyTurn();
-  discardBtn.addEventListener('click', () => {
-    socket.emit('discardDeadCard', { cardIndex: selectedCardIndex });
-  });
-  if (handToolbarEl) handToolbarEl.appendChild(discardBtn);
+  if (state.status === 'playing') {
+    const discardBtn = document.createElement('button');
+    discardBtn.type = 'button';
+    discardBtn.className = 'hand-discard-btn';
+    discardBtn.textContent = '선택 카드 데드카드 버리기';
+    discardBtn.disabled = selectedCardIndex === null || !isMyTurn();
+    discardBtn.addEventListener('click', () => {
+      socket.emit('discardDeadCard', { cardIndex: selectedCardIndex });
+    });
+    if (handToolbarEl) handToolbarEl.appendChild(discardBtn);
+  } else if (state.status === 'finished' && cards.length > 0) {
+    selectedCardInfo.textContent = `게임 종료 — 남은 손패 ${cards.length}장을 확인할 수 있습니다.`;
+  }
 
   handEl.onmouseleave = () => {
     clearHandHoverPreview();
@@ -717,10 +730,8 @@ function renderBoard() {
       if (seqMeta) {
         const tone = state.players[seqMeta.owner]?.color || '#fbbf24';
         cell.style.setProperty('--seq-tone', tone);
-        cell.classList.add('seq-line', `seq-line--${seqMeta.axis}`);
-        if (seqMeta.idx === 0) cell.classList.add('seq-line--start');
-        if (seqMeta.idx === seqMeta.len - 1) cell.classList.add('seq-line--end');
-        if (seqMeta.seqId % 2 === 1) cell.classList.add('seq-line--alt');
+        cell.style.setProperty('--seq-sparkle-delay', `${(seqMeta.seqId % 4) * 0.09}s`);
+        cell.classList.add('seq-line');
       }
 
       const hint = hintForCell(r, c, selectedCard);
@@ -782,6 +793,16 @@ function stableStringifyWinner(winner) {
   } catch {
     return String(winner);
   }
+}
+
+function didLocalViewerWin(winner) {
+  if (!winner || winner.type === 'draw' || myIndex < 0) return false;
+  if (winner.type === 'player') return winner.playerIdx === myIndex;
+  if (winner.type === 'team') {
+    const myTeam = state.players[myIndex]?.team;
+    return myTeam === winner.team;
+  }
+  return false;
 }
 
 function maybeShowGameResultBanner() {
@@ -868,6 +889,11 @@ function maybeShowGameResultBanner() {
     body = `게임 종료! 우승: ${winnerLabel}`;
   }
 
+  if (didLocalViewerWin(w) && fanfarePlayedForKey !== key) {
+    fanfarePlayedForKey = key;
+    playVictoryFanfare();
+  }
+
   resultBannerTextEl.textContent = body;
   resultBannerEl.hidden = false;
 }
@@ -933,6 +959,9 @@ function renderState() {
   if (state.status !== 'playing') {
     selectedCardIndex = null;
     hoverCard = null;
+  }
+  if (handSectionEl) {
+    handSectionEl.classList.toggle('hand-section--finished', state.status === 'finished');
   }
   renderPlayers();
   renderTurnSpotlight();

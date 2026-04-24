@@ -515,81 +515,56 @@ button:disabled {
   box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.18);
 }
 
+/* 시퀀스 완성: 각 데크 칸의 안쪽 테두리만 반짝임(그리드 gap 사이로 번지지 않음) */
 .cell.seq-line {
   z-index: 2;
-  outline: 3px solid var(--seq-tone, #fbbf24);
-  outline-offset: 0;
-  animation: seqBorderPulse 1s ease-in-out infinite;
-  box-shadow:
-    0 0 0 2px rgba(15, 23, 42, 0.65),
-    0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
+  --seq-glow: var(--seq-tone, #fbbf24);
+  animation: seqCellSparkle 1.12s ease-in-out infinite;
+  animation-delay: var(--seq-sparkle-delay, 0s);
 }
 
-.cell.seq-line--alt {
-  outline-width: 3px;
-}
-
-.cell.seq-line--h.seq-line--start {
-  border-top-left-radius: 10px;
-  border-bottom-left-radius: 10px;
-  box-shadow: inset 6px 0 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
-}
-
-.cell.seq-line--h.seq-line--end {
-  border-top-right-radius: 10px;
-  border-bottom-right-radius: 10px;
-  box-shadow: inset -6px 0 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
-}
-
-.cell.seq-line--v.seq-line--start {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  box-shadow: inset 0 6px 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
-}
-
-.cell.seq-line--v.seq-line--end {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
-  box-shadow: inset 0 -6px 0 rgba(255, 255, 255, 0.12), 0 0 18px color-mix(in srgb, var(--seq-tone, #fbbf24) 55%, transparent);
-}
-
-.cell.seq-line--d1.seq-line--start,
-.cell.seq-line--d2.seq-line--start,
-.cell.seq-line--d1.seq-line--end,
-.cell.seq-line--d2.seq-line--end {
-  border-radius: 10px;
-}
-
-@keyframes seqBorderPulse {
+@keyframes seqCellSparkle {
   0%,
   100% {
-    outline-color: color-mix(in srgb, var(--seq-tone, #fbbf24) 38%, transparent);
-    outline-width: 2px;
+    box-shadow:
+      inset 0 0 0 2px color-mix(in srgb, var(--seq-glow) 42%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--seq-glow) 14%, transparent);
   }
   50% {
-    outline-color: var(--seq-tone, #fbbf24);
-    outline-width: 4px;
+    box-shadow:
+      inset 0 0 0 3px color-mix(in srgb, var(--seq-glow) 92%, #fff),
+      inset 0 0 22px color-mix(in srgb, var(--seq-glow) 32%, transparent);
   }
 }
 
-/* color-mix 미지원: 칩/배경에 filter·opacity 없이 테두리 두께만 깜빡임 */
-@keyframes seqBorderPulseFallback {
+@keyframes seqCellSparkleFallback {
   0%,
   100% {
-    outline-width: 2px;
+    box-shadow:
+      inset 0 0 0 2px rgba(251, 191, 36, 0.45),
+      inset 0 0 12px rgba(251, 191, 36, 0.12);
   }
   50% {
-    outline-width: 4px;
+    box-shadow:
+      inset 0 0 0 3px rgba(253, 224, 171, 0.95),
+      inset 0 0 20px rgba(251, 191, 36, 0.28);
   }
 }
 
 @supports not (color-mix(in srgb, white, black)) {
   .cell.seq-line {
-    box-shadow:
-      0 0 0 2px rgba(15, 23, 42, 0.65),
-      0 0 16px rgba(251, 191, 36, 0.35);
-    animation-name: seqBorderPulseFallback;
+    animation-name: seqCellSparkleFallback;
   }
+}
+
+.hand-section--finished {
+  scroll-margin-top: 12px;
+}
+
+.playing-card--inactive {
+  opacity: 0.88;
+  cursor: default;
+  filter: saturate(0.92);
 }
 
 .chip {
@@ -735,6 +710,15 @@ button:disabled {
     flex: 1 1 auto;
     min-height: 100px;
     order: -1;
+  }
+
+  /* 종료 화면: 손패 카드가 먼저 보이도록(우승 메시지 아래로 밀리지 않게) */
+  .hand-section--finished .hand-main {
+    order: -2;
+  }
+
+  .hand-section--finished .turn-spotlight {
+    order: 0;
   }
 
   .playing-card {
